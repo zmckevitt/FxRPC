@@ -1,0 +1,32 @@
+syntax = "proto3";
+package syscalls;
+
+service Syscall {
+    rpc Call (SyscallRequest) returns (SyscallResponse);
+}
+
+// Will need to include fd, offset, etc.
+// Potentially include in sub message?
+message SyscallRequest {
+    enum Call {
+        OPEN = 0;
+        READ = 1;
+        WRITE = 2;
+        CLOSE = 3;
+    }
+    Call call = 1;
+}
+
+message SyscallResponse {
+    // Include proper error loging
+    enum Result {
+        OK = 0;
+        ERR = 1;
+    }
+    Result result = 1;
+
+    // String to hold data for a read
+    // May be null?
+    // Ideally unbounded...
+    string data = 2; 
+}
