@@ -9,7 +9,7 @@ service Syscall {
     rpc Remove (RemoveRequest) returns (RemoveResponse);
 }
 
-// TODO: how to include multiple flags? 
+// need to include mode_t mode
 message OpenRequest {
     string path = 1;
     int32 flags = 2;
@@ -19,8 +19,6 @@ message ReadRequest {
     int32 fd = 1;
 }
 
-// TODO: need page array pointer, idk how that will work!
-// Can you pass large buffers w string type?
 message WriteRequest {
     int32 fd = 1;
     bytes page = 2;

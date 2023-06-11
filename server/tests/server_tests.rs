@@ -2,44 +2,80 @@ use libc::*;
 use syscall::{OpenRequest, ReadRequest, WriteRequest, CloseRequest, RemoveRequest,
               syscall_client::SyscallClient};
 
+const PAGE_SIZE: usize = 1024;
+
 pub mod syscall {
     tonic::include_proto!("syscalls");
 }
 
-#[tokio::test]
-async fn read_test() -> Result<(), Box<dyn std::error::Error>> {
+async fn grpc_open(path: &str, flags: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let mut client = SyscallClient::connect("http://[::1]:8080").await?;
-    // let filename = String::from("files/read_test.txt");
-    let filename = "files/read_test.txt";
     let request = tonic::Request::new(OpenRequest {
-        path: filename.to_string(),
-        flags: O_CREAT | O_RDWR,
+        path: path.to_string(),
+        flags: flags,
     });
     let response = client.open(request).await?.into_inner();
-    let fd = response.result;
-    println!("ReadTest: open request returned file descriptor: {}", fd);
+    Ok(response.result)
+}
 
-    assert!(fd != -1);
-
+async fn grpc_read(fd: i32, page: &mut Vec<u8>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut client = SyscallClient::connect("http://[::1]:8080").await?; 
     let request = tonic::Request::new(ReadRequest {
         fd: fd,
     });
 
     let response = client.read(request).await?.into_inner();
-    let result = response.result;
-    
-    // Length of test in files/read_test.txt
-    assert!(result == 13);
+    *page = response.page;
+    Ok(response.result)
+}
 
-    let page = response.page;
-    println!("ReadTest: request returned the following data: {:?}", String::from_utf8(page)); 
+async fn grpc_write(fd: i32, page: &Vec<u8>) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut client = SyscallClient::connect("http://[::1]:8080").await?;
+    let request = tonic::Request::new(WriteRequest {
+        fd: fd,
+        page: page.to_vec(),
+    });
 
+    let response = client.write(request).await?.into_inner();
+    Ok(response.result)
+}
+
+async fn grpc_close(fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut client = SyscallClient::connect("http://[::1]:8080").await?; 
     let request = tonic::Request::new(CloseRequest {
         fd: fd,
     });
 
     let response = client.close(request).await?.into_inner();
-    let result = response.result;
+    Ok(response.result)
+}
+
+async fn grpc_remove(path: &str) -> Result<i32, Box<dyn std::error::Error>> {
+    let mut client = SyscallClient::connect("http://[::1]:8080").await?;
+    let request = tonic::Request::new(RemoveRequest {
+        path: path.to_string(),
+    });
+    let response = client.remove(request).await?.into_inner();
+    Ok(response.result)
+}
+
+#[tokio::test]
+async fn read_test() -> Result<(), Box<dyn std::error::Error>> {
+    let filename = "files/read_test.txt";
+    let fd = grpc_open(filename, O_CREAT | O_RDWR).await?;
+    println!("ReadTest: open request returned file descriptor: {}", fd);
+
+    assert!(fd != -1);
+
+    let page: &mut [u8; PAGE_SIZE] = &mut [0; PAGE_SIZE];
+    let result = grpc_read(fd, &mut page.to_vec()).await?;
+ 
+    // Length of test in files/read_test.txt
+    assert!(result == 13);
+
+    println!("ReadTest: request returned the following data: {:?}", String::from_utf8(page.to_vec())); 
+
+    let result = grpc_close(fd).await?;    
 
     assert!(result != -1);
 
@@ -48,46 +84,24 @@ async fn read_test() -> Result<(), Box<dyn std::error::Error>> {
 
 #[tokio::test]
 async fn write_test() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = SyscallClient::connect("http://[::1]:8080").await?;
-    //let filename = String::from("files/write_test.txt");
     let filename = "files/write_test.txt";
-    let request = tonic::Request::new(OpenRequest {
-        path: filename.to_string(),
-        flags: O_CREAT | O_RDWR,
-    });
-    let response = client.open(request).await?.into_inner();
-    let fd = response.result;
+    let fd = grpc_open(filename, O_CREAT | O_RDWR).await?;
     println!("WriteTest: open request returned file descriptor: {}", fd);
 
     assert!(fd != -1);
 
     let page = "write test".as_bytes();
-    let request = tonic::Request::new(WriteRequest {
-        fd: fd,
-        page: page.to_vec(),
-    });
 
-    let response = client.write(request).await?.into_inner();
-    let result = response.result;
+    let result = grpc_write(fd, &page.to_vec()).await?;
     
     // Length of test in files/read_test.txt
     assert!(result != -1);
 
-    let request = tonic::Request::new(CloseRequest {
-        fd: fd,
-    });
-
-    let response = client.close(request).await?.into_inner();
-    let result = response.result;
+    let result = grpc_close(fd).await?;
 
     assert!(result != -1);
 
-    let request = tonic::Request::new(RemoveRequest {
-        path: filename.to_string(),
-    });
-
-    let response = client.remove(request).await?.into_inner();
-    let result = response.result;
+    let result = grpc_remove(filename).await?;
 
     assert!(result != -1);
 
