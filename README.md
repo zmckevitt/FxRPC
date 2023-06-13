@@ -10,4 +10,4 @@ Distributed fxmark benchmark using gRPC. Project uses gRPC to pass basic file re
 
 ## Building and Testing
 
-The project currently contains a classic client/server implementation with a basic skeleton client built in the ```client/``` directory. However, the ```server/tests/``` directory contains various mini clients to act as unit tests to evaluate the server's functionality. To run these tests, first start the server: ```cd server && cargo run``` and then run the tests: ```cd server && cargo test```. To run the client and server separately, first start the server: ```cd server && cargo run```, and then run the client ```cd client && cargo run```.
+The project currently contains a server implementation with a client library. To run the unit tests, first start the server: ```cargo run``` and then start the unit tests: ```cargo test```.
