@@ -9,6 +9,7 @@ use libc::*;
 
 // Need to make sure this is consistent with what client expects
 const PAGE_SIZE: usize = 1024;
+const PATH: &str = "./files/";
 
 pub mod syscalls {
     tonic::include_proto!("syscalls");
@@ -17,11 +18,11 @@ pub mod syscalls {
 #[derive(Debug, Default)]
 pub struct SyscallService {}
 
-fn serve_open(path: &str, flags: i32) -> Response<syscalls::OpenResponse> {
-
+fn serve_open(filename: &str, flags: i32) -> Response<syscalls::OpenResponse> {
+    let file_path = format!("{}{}", PATH, filename);
     let fd;
     unsafe {
-        fd = open(path.as_ptr() as *const i8, flags);
+        fd = open(file_path.as_ptr() as *const i8, flags);
     }
     Response::new(syscalls::OpenResponse {
         result: fd,
@@ -68,11 +69,11 @@ fn serve_close(fd: i32) -> Response<syscalls::CloseResponse> {
     })
 }
 
-fn serve_remove(path: &str) -> Response<syscalls::RemoveResponse> {
-
+fn serve_remove(filename: &str) -> Response<syscalls::RemoveResponse> {
+    let file_path = format!("{}{}", PATH, filename);
     let fd;
     unsafe {
-        fd = remove(path.as_ptr() as *const i8);
+        fd = remove(file_path.as_ptr() as *const i8);
     }
     Response::new(syscalls::RemoveResponse {
         result: fd,
