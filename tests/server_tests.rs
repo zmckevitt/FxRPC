@@ -3,7 +3,6 @@ use fxmark_grpc::*;
 
 const PAGE_SIZE: usize = 1024;
 
-
 #[tokio::test]
 async fn read_test() -> Result<(), Box<dyn std::error::Error>> {
     let filename = "read_test.txt";

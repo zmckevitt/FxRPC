@@ -1,3 +1,8 @@
+/*
+    Library for gRPC system call clients.
+    Zack McKevitt - 2023
+*/
+
 use syscalls::{OpenRequest, ReadRequest, WriteRequest, CloseRequest, RemoveRequest,
               syscall_client::SyscallClient};
 

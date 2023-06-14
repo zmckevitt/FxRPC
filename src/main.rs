@@ -1,11 +1,14 @@
+/*
+    gRPC server to execute system calls.
+    Zack McKevitt - 2023
+*/
+
 use tonic::{transport::Server, Request, Response, Status};
-use syscalls::{OpenRequest, OpenResponse,
-               ReadRequest, ReadResponse, 
-               WriteRequest, WriteResponse, 
-               CloseRequest, CloseResponse, 
-               RemoveRequest, RemoveResponse,
-               syscall_server::{Syscall, SyscallServer}};
+use syscalls::{OpenRequest, OpenResponse, ReadRequest, ReadResponse, 
+               WriteRequest, WriteResponse, CloseRequest, CloseResponse, 
+               RemoveRequest, RemoveResponse, syscall_server::{Syscall, SyscallServer}};
 use libc::*;
+use nrfs::*;
 
 // Need to make sure this is consistent with what client expects
 const PAGE_SIZE: usize = 1024;

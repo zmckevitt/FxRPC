@@ -11,6 +11,7 @@ tonic = "0.9.2"
 tokio = { version = "1.19.2", features = ["macros", "rt-multi-thread"] }
 libc = "0.2.146"
 futures = "0.3.28"
+nrfs = { git="https://github.com/ankit-iitb/nrfs.git" }
 
 [build-dependencies]
 tonic-build = "0.9.2"
