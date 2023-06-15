@@ -18,10 +18,12 @@ pub mod syscalls {
     tonic::include_proto!("syscalls");
 }
 
+static mut MEMFS: *const MemFS = std::ptr::null();
+
 #[derive(Debug, Default)]
 pub struct SyscallService {}
 
-fn serve_open(filename: &str, flags: i32) -> Response<syscalls::OpenResponse> {
+fn libc_open(filename: &str, flags: i32) -> Response<syscalls::OpenResponse> {
     let file_path = format!("{}{}", PATH, filename);
     let fd;
     unsafe {
@@ -32,7 +34,7 @@ fn serve_open(filename: &str, flags: i32) -> Response<syscalls::OpenResponse> {
     })
 }
 
-fn serve_read(fd: i32) -> Response<syscalls::ReadResponse> {
+fn libc_read(fd: i32) -> Response<syscalls::ReadResponse> {
     let res;
     let page: &mut [u8; PAGE_SIZE] = &mut [0; PAGE_SIZE];
     unsafe {
@@ -48,7 +50,7 @@ fn serve_read(fd: i32) -> Response<syscalls::ReadResponse> {
 }
 
 // TODO: Error handling
-fn serve_write(fd: i32, page: Vec<u8>) -> Response<syscalls::WriteResponse> {
+fn libc_write(fd: i32, page: Vec<u8>) -> Response<syscalls::WriteResponse> {
     let res;
     unsafe {
         let len = page.len();
@@ -62,7 +64,7 @@ fn serve_write(fd: i32, page: Vec<u8>) -> Response<syscalls::WriteResponse> {
     })
 }
 
-fn serve_close(fd: i32) -> Response<syscalls::CloseResponse> {
+fn libc_close(fd: i32) -> Response<syscalls::CloseResponse> {
     let res;
     unsafe {
         res = close(fd);
@@ -72,7 +74,7 @@ fn serve_close(fd: i32) -> Response<syscalls::CloseResponse> {
     })
 }
 
-fn serve_remove(filename: &str) -> Response<syscalls::RemoveResponse> {
+fn libc_remove(filename: &str) -> Response<syscalls::RemoveResponse> {
     let file_path = format!("{}{}", PATH, filename);
     let fd;
     unsafe {
@@ -83,33 +85,54 @@ fn serve_remove(filename: &str) -> Response<syscalls::RemoveResponse> {
     })
 }
 
+fn _nrfs_create(filename: &str, _flags: i32) -> Response<syscalls::OpenResponse> {
+    // let file_path = format!("{}{}", PATH, filename);
+    let memfs;
+    unsafe {
+        memfs = MEMFS.as_ref().expect("Unable to reference filesystem.");
+        let _ = memfs.create(filename, u64::from(FileModes::S_IRWXU));
+    }
+    Response::new(syscalls::OpenResponse {
+        result: 0,
+    })
+}
+
 // TODO: Do error handling
 #[tonic::async_trait]
 impl Syscall for SyscallService {
     async fn open(&self, request: Request<OpenRequest>) -> Result<Response<OpenResponse>, Status> {
         let r = request.into_inner();
-        Ok(serve_open(&r.path, r.flags))
+        Ok(libc_open(&r.path, r.flags))
     }
     async fn read(&self, request: Request<ReadRequest>) -> Result<Response<ReadResponse>, Status> {
         let r = request.into_inner();
-        Ok(serve_read(r.fd))
+        Ok(libc_read(r.fd))
     }
     async fn write(&self, request: Request<WriteRequest>) -> Result<Response<WriteResponse>, Status> {
         let r = request.into_inner();
-        Ok(serve_write(r.fd, r.page))
+        Ok(libc_write(r.fd, r.page))
     }
     async fn close(&self, request: Request<CloseRequest>) -> Result<Response<CloseResponse>, Status> {
         let r = request.into_inner();
-        Ok(serve_close(r.fd))
+        Ok(libc_close(r.fd))
     }
     async fn remove(&self, request: Request<RemoveRequest>) -> Result<Response<RemoveResponse>, Status> {
         let r = request.into_inner();
-        Ok(serve_remove(&r.path))
+        Ok(libc_remove(&r.path))
     }
 }
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
+
+    // Initialize Filesystem
+    let memfs = MemFS::default();
+    unsafe {
+        MEMFS = &memfs;
+    }
+    let _ignore = memfs.create("file.test", u64::from(FileModes::S_IRWXU));
+
+    // Create Syscall server
     let address = "[::1]:8080".parse().unwrap();
     let syscalls_service = SyscallService::default();
 
