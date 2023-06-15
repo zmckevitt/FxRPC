@@ -7,27 +7,31 @@ use tonic::{transport::Server, Request, Response, Status};
 use syscalls::{OpenRequest, OpenResponse, ReadRequest, ReadResponse, 
                WriteRequest, WriteResponse, CloseRequest, CloseResponse, 
                RemoveRequest, RemoveResponse, syscall_server::{Syscall, SyscallServer}};
+use tokio::runtime::Runtime;
 use libc::*;
-use nrfs::*;
 
 // Need to make sure this is consistent with what client expects
 const PAGE_SIZE: usize = 1024;
+
+// TODO: make sure this doesnt swap! More info:
+// https://unix.stackexchange.com/questions/59300/how-to-place-store-a-file-in-memory-on-linux
+// Temporary FS path
+// const PATH: &str = "/dev/shm/";
 const PATH: &str = "./files/";
 
 pub mod syscalls {
     tonic::include_proto!("syscalls");
 }
 
-static mut MEMFS: *const MemFS = std::ptr::null();
-
 #[derive(Debug, Default)]
 pub struct SyscallService {}
 
+// TODO: make S_IRWXU a function parameter
 fn libc_open(filename: &str, flags: i32) -> Response<syscalls::OpenResponse> {
-    let file_path = format!("{}{}", PATH, filename);
+    let file_path = format!("{}{}{}", PATH, filename, char::from(0));
     let fd;
     unsafe {
-        fd = open(file_path.as_ptr() as *const i8, flags);
+        fd = open(file_path.as_ptr() as *const i8, flags, S_IRWXU);
     }
     Response::new(syscalls::OpenResponse {
         result: fd,
@@ -39,9 +43,6 @@ fn libc_read(fd: i32) -> Response<syscalls::ReadResponse> {
     let page: &mut [u8; PAGE_SIZE] = &mut [0; PAGE_SIZE];
     unsafe {
         res = pread(fd, page.as_ptr() as *mut c_void, PAGE_SIZE, 0);
-        // if res != PAGE_SIZE as isize {
-        //     panic!("pread() failed");
-        // }
     }
     Response::new(syscalls::ReadResponse {
         result: res as i32,
@@ -75,25 +76,13 @@ fn libc_close(fd: i32) -> Response<syscalls::CloseResponse> {
 }
 
 fn libc_remove(filename: &str) -> Response<syscalls::RemoveResponse> {
-    let file_path = format!("{}{}", PATH, filename);
+    let file_path = format!("{}{}{}", PATH, filename, char::from(0));
     let fd;
     unsafe {
         fd = remove(file_path.as_ptr() as *const i8);
     }
     Response::new(syscalls::RemoveResponse {
         result: fd,
-    })
-}
-
-fn _nrfs_create(filename: &str, _flags: i32) -> Response<syscalls::OpenResponse> {
-    // let file_path = format!("{}{}", PATH, filename);
-    let memfs;
-    unsafe {
-        memfs = MEMFS.as_ref().expect("Unable to reference filesystem.");
-        let _ = memfs.create(filename, u64::from(FileModes::S_IRWXU));
-    }
-    Response::new(syscalls::OpenResponse {
-        result: 0,
     })
 }
 
@@ -122,24 +111,18 @@ impl Syscall for SyscallService {
     }
 }
 
-#[tokio::main]
-async fn main() -> Result<(), Box<dyn std::error::Error>> {
-
-    // Initialize Filesystem
-    let memfs = MemFS::default();
-    unsafe {
-        MEMFS = &memfs;
-    }
-    let _ignore = memfs.create("file.test", u64::from(FileModes::S_IRWXU));
-
+fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Create Syscall server
     let address = "[::1]:8080".parse().unwrap();
     let syscalls_service = SyscallService::default();
 
     println!("Starting server on port {}", 8080);
 
-    Server::builder().add_service(SyscallServer::new(syscalls_service))
-        .serve(address)
-        .await?;
+    let rt = Runtime::new().expect("Failed to obtain runtime object.");
+    let server_future = Server::builder()
+        .add_service(SyscallServer::new(syscalls_service))
+        .serve(address);
+    rt.block_on(server_future)
+        .expect("Failed to successfully run the future on RunTime.");
     Ok(())
 }
