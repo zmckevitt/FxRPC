@@ -1,8 +1,9 @@
 use super::PAGE_SIZE;
-use crate::Bench;
+use crate::fxmark::Bench;
 use libc::*;
 use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
+use fxmark_grpc::*;
 
 #[derive(Clone)]
 pub struct DRBH {
@@ -15,7 +16,7 @@ impl Default for DRBH {
         let page = vec![0xb; PAGE_SIZE];
         DRBH {
             // It doesn't work if trailing \0 isn't there in the filename.
-            path: "/mnt/file.txt\0",
+            path: "file.txt\0",
             page,
         }
     }

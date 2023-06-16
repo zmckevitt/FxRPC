@@ -1,4 +1,4 @@
-use crate::Bench;
+use crate::fxmark::Bench;
 use libc::*;
 use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};

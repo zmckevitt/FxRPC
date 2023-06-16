@@ -1,24 +1,24 @@
 use super::PAGE_SIZE;
-use crate::Bench;
+use crate::fxmark::Bench;
 use libc::*;
 use std::cell::RefCell;
 use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
 
 #[derive(Clone)]
-pub struct DWOL {
+pub struct DRBL {
     path: &'static str,
     page: Vec<u8>,
     fds: RefCell<Vec<c_int>>,
 }
 
-unsafe impl Sync for DWOL {}
+unsafe impl Sync for DRBL {}
 
-impl Default for DWOL {
-    fn default() -> DWOL {
+impl Default for DRBL {
+    fn default() -> DRBL {
         let page = vec![0xb; PAGE_SIZE];
         let fd = vec![-1; 512];
-        DWOL {
+        DRBL {
             // It doesn't work if trailing \0 isn't there in the filename.
             path: "/mnt",
             page,
@@ -27,7 +27,7 @@ impl Default for DWOL {
     }
 }
 
-impl Bench for DWOL {
+impl Bench for DRBL {
     fn init(&self, cores: Vec<u64>, _open_files: usize) {
         unsafe {
             for core in cores {
@@ -38,7 +38,8 @@ impl Bench for DWOL {
                 if fd == -1 {
                     panic!("Unable to create a file");
                 }
-                if write(fd, self.page.as_ptr() as *const c_void, PAGE_SIZE) != PAGE_SIZE as isize {
+                let len = self.page.len();
+                if write(fd, self.page.as_ptr() as *const c_void, len) != len as isize {
                     panic!("Write failed");
                 }
                 self.fds.borrow_mut()[core as usize] = fd;
@@ -65,10 +66,10 @@ impl Bench for DWOL {
                 while Instant::now() < end_experiment {
                     // pread for 128 times to reduce rdtsc overhead.
                     for _i in 0..128 {
-                        if pwrite(fd, page.as_ptr() as *mut c_void, PAGE_SIZE, 0)
+                        if pread(fd, page.as_ptr() as *mut c_void, PAGE_SIZE, 0)
                             != PAGE_SIZE as isize
                         {
-                            panic!("DWOL: pwrite() failed");
+                            panic!("DRBL: pread() failed");
                         }
                         ops += 1;
                     }
@@ -81,7 +82,7 @@ impl Bench for DWOL {
             let filename = format!("{}/file{}.txt\0", self.path, core);
             if remove(filename.as_ptr() as *const i8) != 0 {
                 panic!(
-                    "DWOL: Unable to remove file, errno: {}",
+                    "DRBL: Unable to remove file, errno: {}",
                     nix::errno::errno()
                 );
             }

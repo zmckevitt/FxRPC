@@ -1,5 +1,5 @@
 use super::PAGE_SIZE;
-use crate::Bench;
+use crate::fxmark::Bench;
 use libc::*;
 use std::cell::RefCell;
 use std::io::Error;

@@ -1,5 +1,5 @@
 use super::calculate_throughput;
-use crate::Bench;
+use crate::fxmark::Bench;
 use libc::*;
 use std::cell::RefCell;
 use std::sync::{Arc, Barrier};

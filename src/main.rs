@@ -4,11 +4,16 @@
 */
 
 use tonic::{transport::Server, Request, Response, Status};
+use tokio::runtime::Runtime;
+use std::thread;
+use libc::*;
+
 use syscalls::{OpenRequest, OpenResponse, ReadRequest, ReadResponse, 
                WriteRequest, WriteResponse, CloseRequest, CloseResponse, 
                RemoveRequest, RemoveResponse, syscall_server::{Syscall, SyscallServer}};
-use tokio::runtime::Runtime;
-use libc::*;
+
+mod fxmark;
+use crate::fxmark::run_benchmarks;
 
 // Need to make sure this is consistent with what client expects
 const PAGE_SIZE: usize = 1024;
@@ -112,17 +117,24 @@ impl Syscall for SyscallService {
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // Create Syscall server
-    let address = "[::1]:8080".parse().unwrap();
-    let syscalls_service = SyscallService::default();
+    
+    // Spawn server in background
+    thread::spawn(|| {
+        // Create Syscall server
+        let address = "[::1]:8080".parse().unwrap();
+        let syscalls_service = SyscallService::default();
 
-    println!("Starting server on port {}", 8080);
+        println!("Starting server on port {}", 8080);
 
-    let rt = Runtime::new().expect("Failed to obtain runtime object.");
-    let server_future = Server::builder()
-        .add_service(SyscallServer::new(syscalls_service))
-        .serve(address);
-    rt.block_on(server_future)
-        .expect("Failed to successfully run the future on RunTime.");
+        let rt = Runtime::new().expect("Failed to obtain runtime object.");
+        let server_future = Server::builder()
+            .add_service(SyscallServer::new(syscalls_service))
+            .serve(address);
+        rt.block_on(server_future)
+            .expect("Failed to successfully run the future on RunTime.");
+    });
+
+    run_benchmarks();
+
     Ok(())
 }
