@@ -21,8 +21,7 @@ const PAGE_SIZE: usize = 1024;
 // TODO: make sure this doesnt swap! More info:
 // https://unix.stackexchange.com/questions/59300/how-to-place-store-a-file-in-memory-on-linux
 // Temporary FS path
-// const PATH: &str = "/dev/shm/";
-const PATH: &str = "./files/";
+const PATH: &str = "/dev/shm/";
 
 pub mod syscalls {
     tonic::include_proto!("syscalls");
@@ -134,7 +133,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("Failed to successfully run the future on RunTime.");
     });
 
-    run_benchmarks();
+    // run_benchmarks();
+    while(true) {} ;
 
     Ok(())
 }
