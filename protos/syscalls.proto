@@ -20,12 +20,14 @@ message OpenRequest {
 
 message ReadRequest {
     int32 fd = 1;
+    uint32 size = 2;
+    int64 offset = 3;
 }
 
 message WriteRequest {
     int32 fd = 1;
     bytes page = 2;
-    uint64 len = 3;
+    uint32 len = 3;
 }
 
 message CloseRequest {

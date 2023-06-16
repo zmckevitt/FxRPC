@@ -4,10 +4,11 @@ use libc::*;
 use std::cell::RefCell;
 use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
+use fxmark_grpc::*;
 
 #[derive(Clone)]
 pub struct DRBL {
-    path: &'static str,
+    _path: &'static str,
     page: Vec<u8>,
     fds: RefCell<Vec<c_int>>,
 }
@@ -20,7 +21,7 @@ impl Default for DRBL {
         let fd = vec![-1; 512];
         DRBL {
             // It doesn't work if trailing \0 isn't there in the filename.
-            path: "/mnt",
+            _path: "",
             page,
             fds: RefCell::new(fd),
         }
@@ -29,34 +30,34 @@ impl Default for DRBL {
 
 impl Bench for DRBL {
     fn init(&self, cores: Vec<u64>, _open_files: usize) {
-        unsafe {
+        // unsafe {
             for core in cores {
-                let filename = format!("{}/file{}.txt\0", self.path, core);
+                let filename = format!("file{}.txt\0", core);
 
-                let _a = remove(filename.as_ptr() as *const i8);
-                let fd = open(filename.as_ptr() as *const i8, O_CREAT | O_RDWR, S_IRWXU);
+                let _a = grpc_remove(&filename).unwrap();
+                let fd = grpc_open(&filename, O_CREAT | O_RDWR, S_IRWXU).unwrap();
                 if fd == -1 {
                     panic!("Unable to create a file");
                 }
                 let len = self.page.len();
-                if write(fd, self.page.as_ptr() as *const c_void, len) != len as isize {
+                if grpc_write(fd, &self.page, len).unwrap() != len as i32 {
                     panic!("Write failed");
                 }
                 self.fds.borrow_mut()[core as usize] = fd;
             }
-        }
+        // }
     }
 
     fn run(&self, b: Arc<Barrier>, duration: u64, core: u64, _write_ratio: usize) -> Vec<usize> {
         let mut secs = duration as usize;
         let mut iops = Vec::with_capacity(secs);
 
-        unsafe {
+        // unsafe {
             let fd = self.fds.borrow()[core as usize];
             if fd == -1 {
                 panic!("Unable to open a file");
             }
-            let page: &mut [i8; PAGE_SIZE] = &mut [0; PAGE_SIZE];
+            let mut page: Vec<u8> = vec![0; PAGE_SIZE];
 
             b.wait();
             while secs > 0 {
@@ -66,8 +67,8 @@ impl Bench for DRBL {
                 while Instant::now() < end_experiment {
                     // pread for 128 times to reduce rdtsc overhead.
                     for _i in 0..128 {
-                        if pread(fd, page.as_ptr() as *mut c_void, PAGE_SIZE, 0)
-                            != PAGE_SIZE as isize
+                        if grpc_read(fd, &mut page, PAGE_SIZE, 0).unwrap()
+                            != PAGE_SIZE as i32 
                         {
                             panic!("DRBL: pread() failed");
                         }
@@ -78,15 +79,15 @@ impl Bench for DRBL {
                 secs -= 1;
             }
 
-            close(fd);
-            let filename = format!("{}/file{}.txt\0", self.path, core);
-            if remove(filename.as_ptr() as *const i8) != 0 {
+            let _ignore = grpc_close(fd);
+            let filename = format!("file{}.txt\0", core);
+            if grpc_remove(&filename).unwrap() != 0 {
                 panic!(
                     "DRBL: Unable to remove file, errno: {}",
                     nix::errno::errno()
                 );
             }
-        }
+        // }
 
         iops.clone()
     }

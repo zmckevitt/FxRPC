@@ -14,7 +14,7 @@ fn read_test() -> Result<(), Box<dyn std::error::Error>> {
 
     // let page: &mut [u8; PAGE_SIZE] = &mut [0; PAGE_SIZE];
     let mut page: Vec<u8> = vec![0; PAGE_SIZE];
-    let result = grpc_read(fd, &mut page).unwrap();
+    let result = grpc_read(fd, &mut page, PAGE_SIZE, 0).unwrap();
     assert!(result != -1, "ReadTest: Read Failed");
 
     let binding = String::from_utf8(page).unwrap();
@@ -46,7 +46,7 @@ fn write_test() -> Result<(), Box<dyn std::error::Error>> {
     assert!(result != -1, "WriteTest: Write Failed");
 
     let result = grpc_fsync(fd).unwrap();
-    assert!(result != -1, "ReadTest: Fsync Failed");
+    assert!(result != -1, "WriteTest: Fsync Failed");
 
     let result = grpc_close(fd).unwrap();
     assert!(result != -1, "WriteTest: Close Failed");
@@ -71,7 +71,7 @@ fn write_read_test() -> Result<(), Box<dyn std::error::Error>> {
     assert!(result != -1, "WriteReadTest: Write Failed");
 
     let mut page: Vec<u8> = vec![0; PAGE_SIZE];
-    let result = grpc_read(fd, &mut page).unwrap();
+    let result = grpc_read(fd, &mut page, PAGE_SIZE, 0).unwrap();
     assert!(result != -1, "WriteReadTest: Read Failed");
 
     let binding = String::from_utf8(page).unwrap();
@@ -81,7 +81,7 @@ fn write_read_test() -> Result<(), Box<dyn std::error::Error>> {
         page_str);
 
     let result = grpc_fsync(fd).unwrap();
-    assert!(result != -1, "ReadTest: Fsync Failed");
+    assert!(result != -1, "WriteReadTest: Fsync Failed");
     
     let result = grpc_close(fd).unwrap();
     assert!(result != -1, "WriteReadTest: Close Failed");

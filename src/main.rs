@@ -16,9 +16,6 @@ use syscalls::{OpenRequest, OpenResponse, ReadRequest, ReadResponse,
 mod fxmark;
 use crate::fxmark::run_benchmarks;
 
-// Need to make sure this is consistent with what client expects
-const PAGE_SIZE: usize = 1024;
-
 // TODO: make sure this doesnt swap! More info:
 // https://unix.stackexchange.com/questions/59300/how-to-place-store-a-file-in-memory-on-linux
 // Temporary FS path
@@ -43,11 +40,12 @@ fn libc_open(filename: &str, flags: i32, mode: u32) -> Response<syscalls::OpenRe
     })
 }
 
-fn libc_read(fd: i32) -> Response<syscalls::ReadResponse> {
+fn libc_read(fd: i32, size: usize, offset: i64) -> Response<syscalls::ReadResponse> {
     let res;
-    let page: &mut [u8; PAGE_SIZE] = &mut [0; PAGE_SIZE];
+    //let page: &mut [u8; size] = &mut [0; size];
+    let page: Vec<u8> = vec![0; size];
     unsafe {
-        res = pread(fd, page.as_ptr() as *mut c_void, PAGE_SIZE, 0);
+        res = pread(fd, page.as_ptr() as *mut c_void, size, offset);
     }
     Response::new(syscalls::ReadResponse {
         result: res as i32,
@@ -109,7 +107,7 @@ impl Syscall for SyscallService {
     }
     async fn read(&self, request: Request<ReadRequest>) -> Result<Response<ReadResponse>, Status> {
         let r = request.into_inner();
-        Ok(libc_read(r.fd))
+        Ok(libc_read(r.fd, r.size as usize, r.offset))
     }
     async fn write(&self, request: Request<WriteRequest>) -> Result<Response<WriteResponse>, Status> {
         let r = request.into_inner();
@@ -147,8 +145,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("Failed to successfully run the future on RunTime.");
     });
 
-    run_benchmarks();
-    // loop {} ;
+    // run_benchmarks();
+    loop {} ;
 
     Ok(())
 }
