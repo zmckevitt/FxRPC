@@ -7,12 +7,15 @@ service Syscall {
     rpc Write (WriteRequest) returns (WriteResponse);
     rpc Close (CloseRequest) returns (CloseResponse);
     rpc Remove (RemoveRequest) returns (RemoveResponse);
+    rpc Fsync (FsyncRequest) returns (FsyncResponse);
 }
 
-// need to include mode_t mode
+// TODO: create generic messages and consolidate
+
 message OpenRequest {
     string path = 1;
     int32 flags = 2;
+    uint32 mode = 3;
 }
 
 message ReadRequest {
@@ -22,6 +25,7 @@ message ReadRequest {
 message WriteRequest {
     int32 fd = 1;
     bytes page = 2;
+    uint64 len = 3;
 }
 
 message CloseRequest {
@@ -30,6 +34,10 @@ message CloseRequest {
 
 message RemoveRequest {
     string path = 1;
+}
+
+message FsyncRequest {
+    int32 fd = 1;
 }
 
 message OpenResponse {
@@ -51,5 +59,9 @@ message CloseResponse {
 }
 
 message RemoveResponse {
+    sint32 result = 1;
+}
+
+message FsyncResponse {
     sint32 result = 1;
 }

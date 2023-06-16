@@ -24,32 +24,32 @@ impl Default for DRBH {
 
 impl Bench for DRBH {
     fn init(&self, _cores: Vec<u64>, _open_files: usize) {
-        unsafe {
-            let _a = remove(self.path.as_ptr() as *const i8);
-            let fd = open(self.path.as_ptr() as *const i8, O_CREAT | O_RDWR, S_IRWXU);
+        // unsafe {
+            let _a = grpc_remove(self.path).unwrap();
+            let fd = grpc_open(self.path, O_CREAT | O_RDWR, S_IRWXU).unwrap();
             if fd == -1 {
                 panic!("Unable to create a file");
             }
             let len = self.page.len();
-            if write(fd, self.page.as_ptr() as *const c_void, len) != len as isize {
+            if grpc_write(fd, &self.page, len).unwrap() != len as i32 {
                 panic!("Write failed");
             };
 
-            fsync(fd);
-            close(fd);
-        }
+            let _ignore = grpc_fsync(fd);
+            let _ignore = grpc_close(fd);
+        // }
     }
 
     fn run(&self, b: Arc<Barrier>, duration: u64, _core: u64, _write_ratio: usize) -> Vec<usize> {
         let mut secs = duration as usize;
         let mut iops = Vec::with_capacity(secs);
 
-        unsafe {
-            let fd = open(self.path.as_ptr() as *const i8, O_CREAT | O_RDWR, S_IRWXU);
+        // unsafe {
+            let fd = grpc_open(self.path, O_CREAT | O_RDWR, S_IRWXU).unwrap();
             if fd == -1 {
                 panic!("Unable to open a file");
             }
-            let page: &mut [i8; PAGE_SIZE] = &mut [0; PAGE_SIZE];
+            let mut page: Vec<u8> = vec![0; PAGE_SIZE];
 
             b.wait();
             while secs > 0 {
@@ -58,8 +58,9 @@ impl Bench for DRBH {
                 let end_experiment = start + Duration::from_secs(1);
                 while Instant::now() < end_experiment {
                     for _i in 0..128 {
-                        if pread(fd, page.as_ptr() as *mut c_void, PAGE_SIZE, 0)
-                            != PAGE_SIZE as isize
+                        // if grpc_read(fd, &mut page, PAGE_SIZE, 0).unwrap()
+                        if grpc_read(fd, &mut page).unwrap()
+                            != PAGE_SIZE as i32
                         {
                             panic!("DRBH: pread() failed");
                         };
@@ -70,9 +71,9 @@ impl Bench for DRBH {
                 secs -= 1;
             }
 
-            fsync(fd);
-            close(fd);
-        }
+            let _ignore = grpc_fsync(fd);
+            let _ignore = grpc_close(fd);
+        // }
 
         iops.clone()
     }

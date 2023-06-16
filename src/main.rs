@@ -8,9 +8,10 @@ use tokio::runtime::Runtime;
 use std::thread;
 use libc::*;
 
-use syscalls::{OpenRequest, OpenResponse, ReadRequest, ReadResponse, 
+use syscalls::{OpenRequest, OpenResponse, ReadRequest, ReadResponse,  
                WriteRequest, WriteResponse, CloseRequest, CloseResponse, 
-               RemoveRequest, RemoveResponse, syscall_server::{Syscall, SyscallServer}};
+               RemoveRequest, RemoveResponse, FsyncRequest, FsyncResponse,
+               syscall_server::{Syscall, SyscallServer}};
 
 mod fxmark;
 use crate::fxmark::run_benchmarks;
@@ -31,11 +32,11 @@ pub mod syscalls {
 pub struct SyscallService {}
 
 // TODO: make S_IRWXU a function parameter
-fn libc_open(filename: &str, flags: i32) -> Response<syscalls::OpenResponse> {
+fn libc_open(filename: &str, flags: i32, mode: u32) -> Response<syscalls::OpenResponse> {
     let file_path = format!("{}{}{}", PATH, filename, char::from(0));
     let fd;
     unsafe {
-        fd = open(file_path.as_ptr() as *const i8, flags, S_IRWXU);
+        fd = open(file_path.as_ptr() as *const i8, flags, mode);
     }
     Response::new(syscalls::OpenResponse {
         result: fd,
@@ -55,10 +56,9 @@ fn libc_read(fd: i32) -> Response<syscalls::ReadResponse> {
 }
 
 // TODO: Error handling
-fn libc_write(fd: i32, page: Vec<u8>) -> Response<syscalls::WriteResponse> {
+fn libc_write(fd: i32, page: Vec<u8>, len: usize) -> Response<syscalls::WriteResponse> {
     let res;
     unsafe {
-        let len = page.len();
         res = write(fd, page.as_ptr() as *const c_void, len);
         if res != len as isize {
             panic!("Write Failed");
@@ -90,12 +90,22 @@ fn libc_remove(filename: &str) -> Response<syscalls::RemoveResponse> {
     })
 }
 
+fn libc_fsync(fd: i32) -> Response<syscalls::FsyncResponse> {
+    let res;
+    unsafe {
+        res = fsync(fd);
+    }
+    Response::new(syscalls::FsyncResponse {
+        result: res,
+    })
+}
+
 // TODO: Do error handling
 #[tonic::async_trait]
 impl Syscall for SyscallService {
     async fn open(&self, request: Request<OpenRequest>) -> Result<Response<OpenResponse>, Status> {
         let r = request.into_inner();
-        Ok(libc_open(&r.path, r.flags))
+        Ok(libc_open(&r.path, r.flags, r.mode))
     }
     async fn read(&self, request: Request<ReadRequest>) -> Result<Response<ReadResponse>, Status> {
         let r = request.into_inner();
@@ -103,7 +113,7 @@ impl Syscall for SyscallService {
     }
     async fn write(&self, request: Request<WriteRequest>) -> Result<Response<WriteResponse>, Status> {
         let r = request.into_inner();
-        Ok(libc_write(r.fd, r.page))
+        Ok(libc_write(r.fd, r.page, r.len as usize))
     }
     async fn close(&self, request: Request<CloseRequest>) -> Result<Response<CloseResponse>, Status> {
         let r = request.into_inner();
@@ -112,6 +122,10 @@ impl Syscall for SyscallService {
     async fn remove(&self, request: Request<RemoveRequest>) -> Result<Response<RemoveResponse>, Status> {
         let r = request.into_inner();
         Ok(libc_remove(&r.path))
+    }
+    async fn fsync(&self, request: Request<FsyncRequest>) -> Result<Response<FsyncResponse>, Status> {
+        let r = request.into_inner();
+        Ok(libc_fsync(r.fd))
     }
 }
 
@@ -133,8 +147,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("Failed to successfully run the future on RunTime.");
     });
 
-    // run_benchmarks();
-    loop {} ;
+    run_benchmarks();
+    // loop {} ;
 
     Ok(())
 }
