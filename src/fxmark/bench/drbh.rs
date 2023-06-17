@@ -60,7 +60,7 @@ impl Bench for DRBH {
                     for _i in 0..128 {
                         // Might need to modify the proto to have 4 params 
                         // if pread(fd, page.as_ptr(), PAGE_SIZE, 0)
-                        if grpc_read(fd, &mut page, PAGE_SIZE, 0).unwrap()
+                        if grpc_pread(fd, &mut page, PAGE_SIZE, 0).unwrap()
                             != PAGE_SIZE as i32
                         {
                             panic!("DRBH: pread() failed");

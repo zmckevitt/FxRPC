@@ -39,7 +39,20 @@ fn libc_open(filename: &str, flags: i32, mode: u32) -> Response<syscalls::Syscal
     })
 }
 
-fn libc_read(fd: i32, size: usize, offset: i64) -> Response<syscalls::SyscallResponse> {
+fn libc_read(fd: i32, size: usize) -> Response<syscalls::SyscallResponse> {
+    let res;
+    //let page: &mut [u8; size] = &mut [0; size];
+    let page: Vec<u8> = vec![0; size];
+    unsafe {
+        res = read(fd, page.as_ptr() as *mut c_void, size);
+    }
+    Response::new(syscalls::SyscallResponse {
+        result: res as i32,
+        page: page.to_vec(),
+    })
+}
+
+fn libc_pread(fd: i32, size: usize, offset: i64) -> Response<syscalls::SyscallResponse> {
     let res;
     //let page: &mut [u8; size] = &mut [0; size];
     let page: Vec<u8> = vec![0; size];
@@ -52,14 +65,21 @@ fn libc_read(fd: i32, size: usize, offset: i64) -> Response<syscalls::SyscallRes
     })
 }
 
-// TODO: Error handling
 fn libc_write(fd: i32, page: Vec<u8>, len: usize) -> Response<syscalls::SyscallResponse> {
     let res;
     unsafe {
         res = write(fd, page.as_ptr() as *const c_void, len);
-        if res != len as isize {
-            panic!("Write Failed");
-        };
+    }
+    Response::new(syscalls::SyscallResponse {
+        result: res as i32,
+        page: vec![0],
+    })
+}
+
+fn libc_pwrite(fd: i32, page: Vec<u8>, len: usize, offset: i64) -> Response<syscalls::SyscallResponse> {
+    let res;
+    unsafe {
+        res = pwrite(fd, page.as_ptr() as *const c_void, len, offset);
     }
     Response::new(syscalls::SyscallResponse {
         result: res as i32,
@@ -110,11 +130,17 @@ impl Syscall for SyscallService {
     }
     async fn read(&self, request: Request<ReadRequest>) -> Result<Response<SyscallResponse>, Status> {
         let r = request.into_inner();
-        Ok(libc_read(r.fd, r.size as usize, r.offset))
+        match r.pread {
+            true => Ok(libc_pread(r.fd, r.size as usize, r.offset)),
+            false => Ok(libc_read(r.fd, r.size as usize)),
+        }
     }
     async fn write(&self, request: Request<WriteRequest>) -> Result<Response<SyscallResponse>, Status> {
         let r = request.into_inner();
-        Ok(libc_write(r.fd, r.page, r.len as usize))
+        match r.pwrite {
+            true => Ok(libc_pwrite(r.fd, r.page, r.len as usize, r.offset)),
+            false => Ok(libc_write(r.fd, r.page, r.len as usize)),
+        }
     }
     async fn close(&self, request: Request<CloseRequest>) -> Result<Response<SyscallResponse>, Status> {
         let r = request.into_inner();

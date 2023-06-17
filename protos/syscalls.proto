@@ -30,6 +30,7 @@ message WriteRequest {
     int32 fd = 2;
     bytes page = 3;
     uint32 len = 4;
+    int64 offset = 5;
 }
 
 message CloseRequest {

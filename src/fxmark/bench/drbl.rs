@@ -67,7 +67,7 @@ impl Bench for DRBL {
                 while Instant::now() < end_experiment {
                     // pread for 128 times to reduce rdtsc overhead.
                     for _i in 0..128 {
-                        if grpc_read(fd, &mut page, PAGE_SIZE, 0).unwrap()
+                        if grpc_pread(fd, &mut page, PAGE_SIZE, 0).unwrap()
                             != PAGE_SIZE as i32 
                         {
                             panic!("DRBL: pread() failed");
