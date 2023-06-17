@@ -50,6 +50,7 @@ pub fn grpc_read(fd: i32, page: &mut Vec<u8>, size: usize, offset: i64)
     let rt = Builder::new_multi_thread().enable_all().build().unwrap();
     let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
     let request = tonic::Request::new(ReadRequest {
+        pread: false,
         fd: fd,
         size: size as u32,
         offset: offset,
@@ -64,6 +65,7 @@ pub fn grpc_write(fd: i32, page: &Vec<u8>, len: usize) -> Result<i32, Box<dyn st
     let rt = Builder::new_multi_thread().enable_all().build().unwrap();
     let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
     let request = tonic::Request::new(WriteRequest {
+        pwrite: false,
         fd: fd,
         page: page.to_vec(),
         len: len as u32,

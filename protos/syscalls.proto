@@ -2,12 +2,12 @@ syntax = "proto3";
 package syscalls;
 
 service Syscall {
-    rpc Open (OpenRequest) returns (OpenResponse);
-    rpc Read (ReadRequest) returns (ReadResponse);
-    rpc Write (WriteRequest) returns (WriteResponse);
-    rpc Close (CloseRequest) returns (CloseResponse);
-    rpc Remove (RemoveRequest) returns (RemoveResponse);
-    rpc Fsync (FsyncRequest) returns (FsyncResponse);
+    rpc Open (OpenRequest) returns (SyscallResponse);
+    rpc Read (ReadRequest) returns (SyscallResponse);
+    rpc Write (WriteRequest) returns (SyscallResponse);
+    rpc Close (CloseRequest) returns (SyscallResponse);
+    rpc Remove (RemoveRequest) returns (SyscallResponse);
+    rpc Fsync (FsyncRequest) returns (SyscallResponse);
 }
 
 // TODO: create generic messages and consolidate
@@ -19,15 +19,17 @@ message OpenRequest {
 }
 
 message ReadRequest {
-    int32 fd = 1;
-    uint32 size = 2;
-    int64 offset = 3;
+    bool pread = 1;
+    int32 fd = 2;
+    uint32 size = 3;
+    int64 offset = 4;
 }
 
 message WriteRequest {
-    int32 fd = 1;
-    bytes page = 2;
-    uint32 len = 3;
+    bool pwrite = 1;
+    int32 fd = 2;
+    bytes page = 3;
+    uint32 len = 4;
 }
 
 message CloseRequest {
@@ -42,28 +44,7 @@ message FsyncRequest {
     int32 fd = 1;
 }
 
-message OpenResponse {
-    sint32 result = 1;
-}
-
-// Can you pass large buffers w string type?
-message ReadResponse {
+message SyscallResponse {
     sint32 result = 1;
     bytes page = 2;
-}
-
-message WriteResponse {
-    sint32 result = 1;
-}
-
-message CloseResponse {
-    sint32 result = 1;
-}
-
-message RemoveResponse {
-    sint32 result = 1;
-}
-
-message FsyncResponse {
-    sint32 result = 1;
 }
