@@ -244,7 +244,7 @@ pub fn run_benchmarks() {
         None => unreachable!(),
     };
 
-    let file_name = "./csv_out/fxmark_grpc_benchmark.csv";
+    let file_name = "fxmark_grpc_benchmark.csv";
     //let _ret = std::fs::remove_file(file_name);
     let thread_mapping = ThreadMapping::Sequential;
     let default_write_ratio = 0;
