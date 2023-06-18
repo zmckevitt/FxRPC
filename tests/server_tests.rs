@@ -1,8 +1,6 @@
 use libc::{O_CREAT, O_RDWR, S_IRWXU};
 use fxmark_grpc::*;
 
-const PAGE_SIZE: usize = 1024;
-
 fn read_test_base(pread: bool) -> Result<(), Box<dyn std::error::Error>> {
 
     let test = if pread { "pReadTest" } else { "ReadTest" };

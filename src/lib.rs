@@ -1,5 +1,5 @@
 /*
-    Library for gRPC system call clients.
+    Library for gRPC system call server and clients.
     Zack McKevitt - 2023
 */
 
@@ -14,7 +14,9 @@ type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 type Result<T, E = StdError> = ::std::result::Result<T, E>;
 
 // File system path
-const PATH: &str = "/dev/shm/";
+pub const PATH: &str = "/dev/shm/";
+
+pub const PAGE_SIZE: usize = 1024;
 
 pub mod syscalls {
     tonic::include_proto!("syscalls");
