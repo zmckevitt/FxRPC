@@ -3,7 +3,7 @@
     Zack McKevitt - 2023
 */
 
-use syscalls::{OpenRequest, ReadRequest, WriteRequest, CloseRequest, RemoveRequest, FsyncRequest,
+use syscalls::{OpenRequest, ReadRequest, WriteRequest, CloseRequest, RemoveRequest, FsyncRequest, DirRequest,
               syscall_client::SyscallClient};
 use tokio::runtime::Builder;
 
@@ -129,4 +129,27 @@ pub fn grpc_fsync(fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
     let response = rt.block_on(client.fsync(request))?.into_inner();
     Ok(response.result)
 }
+
+pub fn grpc_mkdir(path: &str, mode: u32) -> Result<i32, Box<dyn std::error::Error>> {
+    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
+    let request = tonic::Request::new(DirRequest {
+        path: path.to_string(),
+        mode: mode,
+    });
+    let response = rt.block_on(client.mkdir(request))?.into_inner();
+    Ok(response.result)
+}
+
+pub fn grpc_rmdir(path: &str) -> Result<i32, Box<dyn std::error::Error>> {
+    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
+    let request = tonic::Request::new(DirRequest {
+        path: path.to_string(),
+        mode: 0,
+    });
+    let response = rt.block_on(client.rmdir(request))?.into_inner();
+    Ok(response.result)
+}
+
 // }

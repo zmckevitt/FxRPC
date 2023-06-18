@@ -8,7 +8,7 @@ use tokio::runtime::Runtime;
 use std::thread;
 use libc::*;
 
-use syscalls::{OpenRequest, ReadRequest, WriteRequest, CloseRequest, RemoveRequest, FsyncRequest, 
+use syscalls::{OpenRequest, ReadRequest, WriteRequest, CloseRequest, RemoveRequest, FsyncRequest, DirRequest, 
                SyscallResponse, syscall_server::{Syscall, SyscallServer}};
 
 mod fxmark;
@@ -121,6 +121,30 @@ fn libc_fsync(fd: i32) -> Response<syscalls::SyscallResponse> {
     })
 }
 
+fn libc_mkdir(dirname: &str, mode: u32) -> Response<syscalls::SyscallResponse> {
+    let dir_path = format!("{}{}{}", PATH, dirname, char::from(0));
+    let res;
+    unsafe {
+        res = mkdir(dir_path.as_ptr() as *const i8, mode);
+    }
+    Response::new(syscalls::SyscallResponse {
+        result: res,
+        page: vec![0],
+    })
+}
+
+fn libc_rmdir(dirname: &str) -> Response<syscalls::SyscallResponse> {
+    let dir_path = format!("{}{}{}", PATH, dirname, char::from(0));
+    let res;
+    unsafe {
+        res = rmdir(dir_path.as_ptr() as *const i8);
+    }
+    Response::new(syscalls::SyscallResponse {
+        result: res,
+        page: vec![0],
+    })
+}
+
 // TODO: Do error handling
 #[tonic::async_trait]
 impl Syscall for SyscallService {
@@ -154,6 +178,14 @@ impl Syscall for SyscallService {
         let r = request.into_inner();
         Ok(libc_fsync(r.fd))
     }
+    async fn mkdir(&self, request: Request<DirRequest>) -> Result<Response<SyscallResponse>, Status> {
+        let r = request.into_inner();
+        Ok(libc_mkdir(&r.path, r.mode))
+    }
+    async fn rmdir(&self, request: Request<DirRequest>) -> Result<Response<SyscallResponse>, Status> {
+        let r = request.into_inner();
+        Ok(libc_rmdir(&r.path))
+    }
 }
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -174,8 +206,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             .expect("Failed to successfully run the future on RunTime.");
     });
 
-    run_benchmarks();
-    // loop {} ;
+    // run_benchmarks();
+    loop {} ;
 
     Ok(())
 }

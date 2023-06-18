@@ -116,4 +116,17 @@ fn write_read_test() -> Result<(), Box<dyn std::error::Error>> {
     assert!(result != -1, "WriteReadTest: Remove Failed");
 
     Ok(())
+}
+
+#[test]
+fn dir_test() -> Result<(), Box<dyn std::error::Error>> {
+    
+    let dirname = "dirTest";
+    let res = grpc_mkdir(dirname, S_IRWXU).unwrap();
+    assert!(res != 1, "DirTest: Mkdir Failed");
+
+    let res = grpc_rmdir(dirname).unwrap();
+    assert!(res != -1, "DirTest: Rmdir Failed");
+
+    Ok(()) 
 } 

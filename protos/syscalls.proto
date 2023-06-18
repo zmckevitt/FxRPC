@@ -8,6 +8,8 @@ service Syscall {
     rpc Close (CloseRequest) returns (SyscallResponse);
     rpc Remove (RemoveRequest) returns (SyscallResponse);
     rpc Fsync (FsyncRequest) returns (SyscallResponse);
+    rpc Mkdir (DirRequest) returns (SyscallResponse);
+    rpc Rmdir (DirRequest) returns (SyscallResponse);
 }
 
 // TODO: create generic messages and consolidate
@@ -43,6 +45,11 @@ message RemoveRequest {
 
 message FsyncRequest {
     int32 fd = 1;
+}
+
+message DirRequest {
+    string path = 1;
+    uint32 mode = 2;
 }
 
 message SyscallResponse {
