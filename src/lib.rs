@@ -36,7 +36,7 @@ pub fn grpc_open(path: &str, flags: i32, mode: u32) -> Result<i32, Box<dyn std::
     Ok(response.result)
 }
 
-pub fn grpc_read_base(pread: bool, fd: i32, page: &mut Vec<u8>, size: usize, offset: i64) 
+fn grpc_read_base(pread: bool, fd: i32, page: &mut Vec<u8>, size: usize, offset: i64) 
     -> Result<i32, Box<dyn std::error::Error>> {
 
     let rt = Builder::new_multi_thread().enable_all().build().unwrap();
@@ -63,7 +63,7 @@ pub fn grpc_pread(fd: i32, page: &mut Vec<u8>, size: usize, offset: i64)
     grpc_read_base(true, fd, page, size, offset)
 }
 
-pub fn grpc_write_base(pwrite: bool, fd: i32, page: &Vec<u8>, len: usize, offset: i64) 
+fn grpc_write_base(pwrite: bool, fd: i32, page: &Vec<u8>, len: usize, offset: i64) 
     -> Result<i32, Box<dyn std::error::Error>> {
 
     let rt = Builder::new_multi_thread().enable_all().build().unwrap();
@@ -310,7 +310,7 @@ impl Syscall for SyscallService {
     }
 }
 
-pub fn start_rpc_server(port: &str) {
+pub fn start_rpc_server(port: u64) {
     // Create Syscall server
     let address = format!("[::1]:{}", port).parse().unwrap();
     let syscalls_service = SyscallService::default();

@@ -1,4 +1,4 @@
-use clap::{crate_version, value_t, App, Arg};
+// use clap::{crate_version, value_t, App, Arg};
 use std::collections::HashMap;
 use std::fs::OpenOptions;
 use std::io::Write;
@@ -207,9 +207,10 @@ where
     }
 }
 
-pub fn run_benchmarks() {
+pub fn run_benchmarks(duration: u64, versions: Vec<&str>) {
     // Example to run the benchmark for 10 seconds, type drbl and drbh
     // `cargo bench --bench fxmark -- --duration 10 --type drbl drbh`
+    /*
     let args = std::env::args().filter(|e| e != "--bench");
     let matches = App::new("Fxmark file-system benchmark")
         .version(crate_version!())
@@ -243,7 +244,7 @@ pub fn run_benchmarks() {
         Some(iter) => iter.collect(),
         None => unreachable!(),
     };
-
+    */
     let file_name = "fxmark_grpc_benchmark.csv";
     //let _ret = std::fs::remove_file(file_name);
     let thread_mapping = ThreadMapping::Sequential;
