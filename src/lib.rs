@@ -6,8 +6,9 @@
 use tonic::{transport::Server, Request, Response, Status};
 use tokio::runtime::Runtime;
 use libc::*;
-use syscalls::{OpenRequest, ReadRequest, WriteRequest, CloseRequest, RemoveRequest, FsyncRequest, DirRequest,
-              SyscallResponse, syscall_server::{Syscall, SyscallServer}, syscall_client::SyscallClient};
+use syscalls::{OpenRequest, ReadRequest, WriteRequest, CloseRequest, RemoveRequest, 
+               FsyncRequest, DirRequest, FstatRequest, FstatResponse, SyscallResponse, 
+               syscall_server::{Syscall, SyscallServer}, syscall_client::SyscallClient};
 use tokio::runtime::Builder;
 
 type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
@@ -144,6 +145,17 @@ pub fn grpc_rmdir(path: &str) -> Result<i32, Box<dyn std::error::Error>> {
     Ok(response.result)
 }
 
+pub fn grpc_fstat_size(fd: i32) -> Result<i64, Box<dyn std::error::Error>> {
+
+    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
+    let request = tonic::Request::new(FstatRequest {
+        fd: fd,
+    });
+
+    let response = rt.block_on(client.fstat(request))?.into_inner();
+    Ok(response.size)
+}
 //////////////////////////////////////// SERVER ////////////////////////////////////////
 
 #[derive(Debug, Default)]
@@ -267,6 +279,23 @@ fn libc_rmdir(dirname: &str) -> Response<syscalls::SyscallResponse> {
     })
 }
 
+// Currently only supporting fstat file size
+// Not yet clear how to conver MaybeUninit<stat> to Vec<u8>
+// Mix only needs file size anyways
+fn libc_fstat_size(fd: i32) -> Response<syscalls::FstatResponse> {
+    let res;
+    let fsize;
+    let mut info = std::mem::MaybeUninit::uninit();
+    unsafe {
+        res = fstat(fd, info.as_mut_ptr());
+        fsize = info.assume_init().st_size;
+    }
+    Response::new(syscalls::FstatResponse {
+        result: res,
+        size: fsize, 
+    })
+}
+
 // TODO: Do error handling
 #[tonic::async_trait]
 impl Syscall for SyscallService {
@@ -307,6 +336,10 @@ impl Syscall for SyscallService {
     async fn rmdir(&self, request: Request<DirRequest>) -> Result<Response<SyscallResponse>, Status> {
         let r = request.into_inner();
         Ok(libc_rmdir(&r.path))
+    }
+    async fn fstat(&self, request: Request<FstatRequest>) -> Result<Response<FstatResponse>, Status> {
+        let r = request.into_inner();
+        Ok(libc_fstat_size(r.fd))
     }
 }
 

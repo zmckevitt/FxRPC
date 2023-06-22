@@ -2,17 +2,16 @@ syntax = "proto3";
 package syscalls;
 
 service Syscall {
-    rpc Open (OpenRequest) returns (SyscallResponse);
-    rpc Read (ReadRequest) returns (SyscallResponse);
-    rpc Write (WriteRequest) returns (SyscallResponse);
-    rpc Close (CloseRequest) returns (SyscallResponse);
+    rpc Open   (OpenRequest)   returns (SyscallResponse);
+    rpc Read   (ReadRequest)   returns (SyscallResponse);
+    rpc Write  (WriteRequest)  returns (SyscallResponse);
+    rpc Close  (CloseRequest)  returns (SyscallResponse);
     rpc Remove (RemoveRequest) returns (SyscallResponse);
-    rpc Fsync (FsyncRequest) returns (SyscallResponse);
-    rpc Mkdir (DirRequest) returns (SyscallResponse);
-    rpc Rmdir (DirRequest) returns (SyscallResponse);
+    rpc Fsync  (FsyncRequest)  returns (SyscallResponse);
+    rpc Mkdir  (DirRequest)    returns (SyscallResponse);
+    rpc Rmdir  (DirRequest)    returns (SyscallResponse);
+    rpc Fstat  (FstatRequest)  returns (FstatResponse);
 }
-
-// TODO: create generic messages and consolidate
 
 message OpenRequest {
     string path = 1;
@@ -50,6 +49,15 @@ message FsyncRequest {
 message DirRequest {
     string path = 1;
     uint32 mode = 2;
+}
+
+message FstatRequest {
+    int32 fd = 1;
+}
+
+message FstatResponse {
+    sint32 result = 1;
+    int64 size = 2;
 }
 
 message SyscallResponse {

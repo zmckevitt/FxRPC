@@ -7,6 +7,8 @@ use std::sync::{Arc, Barrier};
 use std::time::{Duration, Instant};
 use x86::random::rdrand16;
 
+use fxmark_grpc::*;
+
 #[derive(Clone)]
 pub struct MIX {
     path: &'static str,
@@ -35,11 +37,11 @@ impl Bench for MIX {
     fn init(&self, cores: Vec<u64>, open_files: usize) {
         *self.open_files.borrow_mut() = open_files;
         let mut temp: Vec<c_int> = Vec::with_capacity(open_files);
-        unsafe {
+        // unsafe {
             for file in 0..open_files {
-                let filename = format!("{}/file{}.txt\0", self.path, file);
-                let _a = remove(filename.as_ptr() as *const i8);
-                let fd = open(filename.as_ptr() as *const i8, O_CREAT | O_RDWR, S_IRWXU);
+                let filename = format!("file{}.txt\0", file);
+                let _a = grpc_remove(&filename).unwrap();
+                let fd = grpc_open(&filename, O_CREAT | O_RDWR, S_IRWXU).unwrap();
                 if fd == -1 {
                     panic!(
                         "Unable to create a file due to {:?}",
@@ -48,25 +50,25 @@ impl Bench for MIX {
                 }
                 let mut size = 0;
                 while size <= self.file_size {
-                    if write(fd, self.page.as_ptr() as *const c_void, PAGE_SIZE)
-                        != PAGE_SIZE as isize
+                    if grpc_write(fd, &self.page, PAGE_SIZE).unwrap()
+                        != PAGE_SIZE as i32
                     {
                         panic!("MIX: Write failed due to {:?}", Error::last_os_error());
                     }
                     size += PAGE_SIZE as i64;
                 }
 
-                let stat = {
-                    let mut info = std::mem::MaybeUninit::uninit();
-                    fstat(fd, info.as_mut_ptr());
-                    info.assume_init()
+                let stat_size = {
+                    // let mut info = std::mem::MaybeUninit::uninit();
+                    grpc_fstat_size(fd).unwrap()
+                    // info.assume_init()
                 };
-                assert_eq!(self.file_size + PAGE_SIZE as i64, stat.st_size);
+                assert_eq!(self.file_size + PAGE_SIZE as i64, stat_size);
 
-                fsync(fd);
+                let _ignore = grpc_fsync(fd);
                 temp.push(fd);
             }
-        }
+        // }
 
         // Distribute the files among different cores.
         let mut iter = 0;
@@ -81,13 +83,14 @@ impl Bench for MIX {
         let mut secs = duration as usize;
         let mut iops = Vec::with_capacity(secs);
 
-        unsafe {
+        // unsafe {
             let fd = self.fds.borrow()[core as usize];
             if fd == -1 {
                 panic!("Unable to open a file due to {:?}", Error::last_os_error());
             }
             let total_pages = self.file_size / PAGE_SIZE as i64;
-            let page: &mut [i8; PAGE_SIZE as usize] = &mut [0; PAGE_SIZE as usize];
+            // let page: &mut [i8; PAGE_SIZE as usize] = &mut [0; PAGE_SIZE as usize];
+            let mut page: Vec<u8> = vec![0; PAGE_SIZE];
 
             let mut random_num: u16 = 0;
 
@@ -98,19 +101,20 @@ impl Bench for MIX {
                 let end_experiment = start + Duration::from_secs(1);
                 while Instant::now() < end_experiment {
                     for _i in 0..128 {
-                        rdrand16(&mut random_num);
+                        unsafe {
+                            rdrand16(&mut random_num);
+                        }
                         let rand = random_num as i64 % total_pages;
                         let offset = rand * PAGE_SIZE as i64;
-
                         if random_num as usize % 100 < write_ratio {
-                            if pwrite(fd, page.as_ptr() as *mut c_void, PAGE_SIZE, offset)
-                                != PAGE_SIZE as isize
+                            if grpc_pwrite(fd, &page, PAGE_SIZE, offset).unwrap()
+                                != PAGE_SIZE as i32
                             {
                                 panic!("MIX: pwrite() failed {}", nix::errno::errno());
                             };
                         } else {
-                            if pread(fd, page.as_ptr() as *mut c_void, PAGE_SIZE, offset)
-                                != PAGE_SIZE as isize
+                            if grpc_pread(fd, &mut page, PAGE_SIZE, offset).unwrap()
+                                != PAGE_SIZE as i32
                             {
                                 panic!("MIX: pread() failed {}", nix::errno::errno());
                             };
@@ -124,14 +128,14 @@ impl Bench for MIX {
 
             b.wait();
 
-            fsync(fd);
-            close(fd);
+            let _ignore = grpc_fsync(fd);
+            let _ignore = grpc_close(fd);
 
             for i in 0..*self.open_files.borrow() {
-                let filename = format!("{}/file{}.txt\0", self.path, i);
-                let _a = remove(filename.as_ptr() as *const i8);
+                let filename = format!("file{}.txt\0", i);
+                let _a = grpc_remove(&filename);
             }
-        }
+        // }
 
         iops.clone()
     }

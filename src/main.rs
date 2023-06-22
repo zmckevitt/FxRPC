@@ -54,6 +54,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .help("Benchmark to run.")
         )
         .get_matches_from(args);
+
     let mode = value_t!(matches, "mode", String).unwrap();
 
     match mode.as_str() {
