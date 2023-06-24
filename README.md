@@ -11,6 +11,36 @@ Distributed fxmark benchmark using gRPC. Project uses gRPC to pass basic file re
 - Mkdir
 - Rmdir
 
-## Building and Testing
+## Building
 
-This project contains a client/server library. To run the server: ```cargo run -- --mode server --port <port>``` and client: ```cargo run -- --mode client --duration <duration (seconds)> --type <benchmark>```. To run unit tests for various syscalls and directory operations, first run the server, and then run ```cargo test```.
+This project contains a client/server library for distributed syscalls using gRPC. To build the project, first install the necessary dependencies:
+```
+sudo apt install protobuf-compiler
+```
+And then build with the nightly rust toolchain:
+```
+cargo build
+```
+
+## Running mixXX Benchmarks
+
+This project makes use of the ```mixXX``` benchmarks from the Fxmark filesystem benchmark suite. This benchmark consists of a mixed read/write ratio, e.g. ```mixX10``` represents a write ratio of 10%. To run the ```mixX0 mixX10 mixX100``` benchmarks, build and run the server and client. Note: the client is currently hardcoded to expect the server to be running on port 8080.
+```
+cargo run -- --mode server --port 8080 
+cargo run -- --mode client
+```
+
+## Testing
+
+To run unit tests for various syscalls and directory operations, first initialize the file system:
+```
+echo "ReadTest" > /dev/shm/read_test.txt
+```
+Run the server:
+```
+cargo run -- --mode server --port 8080
+```
+Run the tests:
+```
+cargo test
+```
