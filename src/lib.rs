@@ -17,7 +17,7 @@ type Result<T, E = StdError> = ::std::result::Result<T, E>;
 // File system path
 pub const PATH: &str = "/dev/shm/";
 
-pub const PAGE_SIZE: usize = 1024;
+// pub const PAGE_SIZE: usize = 1024;
 
 pub mod syscalls {
     tonic::include_proto!("syscalls");

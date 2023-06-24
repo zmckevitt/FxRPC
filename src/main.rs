@@ -4,9 +4,11 @@
 */
 
 use clap::{crate_version, App, Arg, value_t};
+use std::io::Write;
+use std::fs::{OpenOptions, remove_file};
 
 mod fxmark;
-use crate::fxmark::run_benchmarks;
+use crate::fxmark::{bench, OUTPUT_FILE};
 
 use fxmark_grpc::*;
 
@@ -32,43 +34,32 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .help("Port to bind server")
                 .takes_value(true)
         )
-        .arg(
-            Arg::with_name("duration")
-                .short("d")
-                .long("duration")
-                .required(false)
-                .help("Duration for each run")
-                .takes_value(true),
-        )
-        .arg(
-            Arg::with_name("type")
-                .short("t")
-                .long("type")
-                .multiple(true)
-                .takes_value(true)
-                .required(false)
-                .possible_values(&[
-                    "drbl", "drbh", "dwol", "dwom", "dwal", "mwrl", "mwrm", "mixX0", "mixX1",
-                    "mixX5", "mixX10", "mixX20", "mixX40", "mixX60", "mixX80", "mixX100",
-                ])
-                .help("Benchmark to run.")
-        )
         .get_matches_from(args);
 
     let mode = value_t!(matches, "mode", String).unwrap();
+    let bench_name = String::from("mix");
 
     match mode.as_str() {
         "server" => {
             let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());
             start_rpc_server(port)
         }, 
-        "client" => { 
-            let duration = value_t!(matches, "duration", u64).unwrap_or_else(|e| e.exit());
-            let versions: Vec<&str> = match matches.values_of("type") {
-                Some(iter) => iter.collect(),
-                None => unreachable!(),
-            };
-            run_benchmarks(duration, versions);
+        "client" => {
+
+            let _ = remove_file(OUTPUT_FILE);
+
+            let mut csv_file = OpenOptions::new()
+                .append(true)
+                .create(true)
+                .open(OUTPUT_FILE)
+                .expect("Cant open output file");
+            let row = "thread_id,benchmark,core,write_ratio,open_files,duration_total,duration,operations\n";
+            let r = csv_file.write(row.as_bytes());
+            assert!(r.is_ok());
+ 
+            bench(1, bench_name.clone(), 0);
+            bench(1, bench_name.clone(), 10);
+            bench(1, bench_name.clone(), 100);
         }, 
         _ => panic!("Unknown mode!"),
     }

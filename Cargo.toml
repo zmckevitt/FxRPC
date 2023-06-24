@@ -19,6 +19,10 @@ clap = { version = "2", features = ["yaml"] }
 nix = "0.20.2"
 x86 = "0.52.0"
 yaml-rust = "0.4.1"
+lazy_static = "1.4.0"
+log = "0.4.19"
+lineup = "1.0.0"
+rawtime = "0.0.10"
 
 [build-dependencies]
 tonic-build = "0.9.2"
