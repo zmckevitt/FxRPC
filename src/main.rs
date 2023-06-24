@@ -53,7 +53,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .create(true)
                 .open(OUTPUT_FILE)
                 .expect("Cant open output file");
-            let row = "thread_id,benchmark,core,write_ratio,open_files,duration_total,duration,operations\n";
+            let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations\n";
             let r = csv_file.write(row.as_bytes());
             assert!(r.is_ok());
  
