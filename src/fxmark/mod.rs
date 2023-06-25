@@ -188,7 +188,7 @@ where
             let r = csv_file.write(
                 format!(
                     "{},{:?},{},{},{},{},{},{}\n",
-                    core_id/2, //convert core id to thread id
+                    core_id,
                     benchmark,
                     cores,
                     write_ratio,
