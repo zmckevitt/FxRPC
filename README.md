@@ -19,6 +19,7 @@ sudo apt install protobuf-compiler
 ```
 And then build with the nightly rust toolchain:
 ```
+rustup default nightly
 cargo build
 ```
 
