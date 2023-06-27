@@ -10,6 +10,7 @@ use std::time::Duration;
 use std::thread;
 use std::fs::OpenOptions;
 use std::io::Write;
+use std::sync::Mutex;
 
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
@@ -27,6 +28,8 @@ use utils::topology::*;
 
 mod mix;
 use crate::fxmark::mix::MIX;
+
+use fxmark_grpc::BlockingClient;
 
 const PAGE_SIZE: usize = 1008;
 
@@ -78,17 +81,18 @@ impl FromStr for ARGs {
 }
 
 pub trait Bench {
-    fn init(&self, cores: Vec<u64>, open_files: usize);
+    fn init(&self, cores: Vec<u64>, open_files: usize, client: &mut Arc<Mutex<BlockingClient>>);
     fn run(
         &self,
         barrier: &AtomicUsize,
         duration: u64,
         core: usize,
         write_ratio: usize,
+        client: &mut Arc<Mutex<BlockingClient>>
     ) -> Vec<usize>;
 }
 
-unsafe extern "C" fn fxmark_bencher_trampoline<T>(arg: *mut u8, cores: usize, core_id: usize) -> *mut u8
+unsafe extern "C" fn fxmark_bencher_trampoline<T>(arg: *mut u8, cores: usize, core_id: usize, client: &mut Arc<Mutex<BlockingClient>>) -> *mut u8
 where
     T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
 {
@@ -99,6 +103,7 @@ where
         bench.benchmark,
         bench.write_ratio,
         bench.open_files,
+        client,
     );
     ptr::null_mut()
 }
@@ -169,7 +174,8 @@ where
                       core_id: usize, 
                       benchmark: &str, 
                       write_ratio: usize, 
-                      open_files: usize) {
+                      open_files: usize,
+                      client: &mut Arc<Mutex<BlockingClient>>) {
 
         let bench_duration_secs = if cfg!(feature = "smoke") { 1 } else { 10 };
         let iops = self.bench.run(
@@ -177,6 +183,7 @@ where
             bench_duration_secs,
             core_id,
             write_ratio,
+            client,
         );
 
         let mut csv_file = OpenOptions::new()
@@ -200,8 +207,6 @@ where
                 .as_bytes()
             );
             assert!(r.is_ok());
-            //let r = csv_file.write("\n".as_bytes());
-            //assert!(r.is_ok());
         }
     }
 }
@@ -221,6 +226,8 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
         open_files: usize,
         write_ratio: usize,
     ) {
+
+        let mut client = std::sync::Arc::new(Mutex::new(BlockingClient::connect("http://[::1]:8080").unwrap()));
 
         let thread_mappings = microbench.thread_mappings.clone();
         let threads = microbench.threads.clone();
@@ -245,20 +252,18 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
                 POOR_MANS_BARRIER.store(cores.len(), Ordering::SeqCst);
                 
                 let mb = microbench.clone();
-                mb.bench.init(cores.clone(), open_files);
-                // microbench.cores = cores.len();
+                mb.bench.init(cores.clone(), open_files, &mut client);
 
                 let clen = cores.len();
 
-                unsafe {
-                    for core_id in cores {
-                        let mb1 = mb.clone();
-                        thandles.push(thread::spawn(move || {
-                                utils::pin_thread(core_id);
-                                let arg = Arc::into_raw(mb1) as *const _ as *mut u8;
-                                fxmark_bencher_trampoline::<T>(arg, clen, core_id as usize);
-                        }));
-                    }
+                for core_id in cores {
+                    let mb1 = mb.clone();
+                    let mut client1 = client.clone();
+                    thandles.push(thread::spawn(move || {
+                        utils::pin_thread(core_id);
+                        let arg = Arc::into_raw(mb1) as *const _ as *mut u8;
+                        unsafe { fxmark_bencher_trampoline::<T>(arg, clen, core_id as usize, &mut client1); }
+                    }));
                 }
 
                 for thandle in thandles {

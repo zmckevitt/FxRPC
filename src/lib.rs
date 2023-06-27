@@ -25,137 +25,145 @@ pub mod syscalls {
 
 //////////////////////////////////////// CLIENT ////////////////////////////////////////
 
-pub fn grpc_open(path: &str, flags: i32, mode: u32) -> Result<i32, Box<dyn std::error::Error>> {
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
-    let request = tonic::Request::new(OpenRequest {
-        path: path.to_string(),
-        flags: flags,
-        mode: mode,
-    });
-    let response = rt.block_on(client.open(request))?.into_inner();
-    Ok(response.result)
+pub struct BlockingClient {
+    client: SyscallClient<tonic::transport::Channel>,
+    rt: Runtime,
 }
 
-fn grpc_read_base(pread: bool, fd: i32, page: &mut Vec<u8>, size: usize, offset: i64) 
-    -> Result<i32, Box<dyn std::error::Error>> {
+#[derive(Clone)]
+pub struct ClientWrapper(pub *mut BlockingClient);
 
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
-    let request = tonic::Request::new(ReadRequest {
-        pread: pread,
-        fd: fd,
-        size: size as u32,
-        offset: offset,
-    });
+unsafe impl Send for ClientWrapper {}
+impl Copy for ClientWrapper {}
 
-    let response = rt.block_on(client.read(request))?.into_inner();
-    *page = response.page;
-    Ok(response.result)
+impl BlockingClient {
+
+    pub fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+    where
+        D: TryInto<tonic::transport::Endpoint>,
+        D::Error: Into<StdError>,
+    {
+        let rt = Builder::new_multi_thread().enable_all().build().unwrap();
+        let client = rt.block_on(SyscallClient::connect(dst))?;
+
+        Ok(Self { client, rt })
+    }
+
+    pub fn grpc_open(&mut self, path: &str, flags: i32, mode: u32) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(OpenRequest {
+            path: path.to_string(),
+            flags: flags,
+            mode: mode,
+        });
+        let response = self.rt.block_on(self.client.open(request))?.into_inner();
+        Ok(response.result)
+    }
+    
+    fn grpc_read_base(&mut self, pread: bool, fd: i32, page: &mut Vec<u8>, size: usize, offset: i64) 
+        -> Result<i32, Box<dyn std::error::Error>> {
+    
+        let request = tonic::Request::new(ReadRequest {
+            pread: pread,
+            fd: fd,
+            size: size as u32,
+            offset: offset,
+        });
+    
+        let response = self.rt.block_on(self.client.read(request))?.into_inner();
+        *page = response.page;
+        Ok(response.result)
+    }
+    
+    pub fn grpc_read(&mut self, fd: i32, page: &mut Vec<u8>, size: usize) 
+        -> Result<i32, Box<dyn std::error::Error>> {
+        self.grpc_read_base(false, fd, page, size, 0)
+    }
+    
+    pub fn grpc_pread(&mut self, fd: i32, page: &mut Vec<u8>, size: usize, offset: i64) 
+        -> Result<i32, Box<dyn std::error::Error>> {
+        self.grpc_read_base(true, fd, page, size, offset)
+    }
+    
+    fn grpc_write_base(&mut self, pwrite: bool, fd: i32, page: &Vec<u8>, len: usize, offset: i64) 
+        -> Result<i32, Box<dyn std::error::Error>> {
+    
+        let request = tonic::Request::new(WriteRequest {
+            pwrite: pwrite,
+            fd: fd,
+            page: page.to_vec(),
+            len: len as u32,
+            offset: offset,
+        });
+    
+        let response = self.rt.block_on(self.client.write(request))?.into_inner();
+        Ok(response.result)
+    }
+    
+    pub fn grpc_write(&mut self, fd: i32, page: &Vec<u8>, size: usize)
+        -> Result<i32, Box<dyn std::error::Error>> {
+        self.grpc_write_base(false, fd, page, size, 0)
+    }
+    
+    pub fn grpc_pwrite(&mut self, fd: i32, page: &Vec<u8>, size: usize, offset: i64)
+        -> Result<i32, Box<dyn std::error::Error>> {
+        self.grpc_write_base(true, fd, page, size, offset)
+    }
+    
+    pub fn grpc_close(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(CloseRequest {
+            fd: fd,
+        });
+    
+        let response = self.rt.block_on(self.client.close(request))?.into_inner();
+        Ok(response.result)
+    }
+    
+    pub fn grpc_remove(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(RemoveRequest {
+            path: path.to_string(),
+        });
+        let response = self.rt.block_on(self.client.remove(request))?.into_inner();
+        Ok(response.result)
+    }
+    
+    pub fn grpc_fsync(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(FsyncRequest {
+            fd: fd,
+        });
+    
+        let response = self.rt.block_on(self.client.fsync(request))?.into_inner();
+        Ok(response.result)
+    }
+    
+    pub fn grpc_mkdir(&mut self, path: &str, mode: u32) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(DirRequest {
+            path: path.to_string(),
+            mode: mode,
+        });
+        let response = self.rt.block_on(self.client.mkdir(request))?.into_inner();
+        Ok(response.result)
+    }
+    
+    pub fn grpc_rmdir(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(DirRequest {
+            path: path.to_string(),
+            mode: 0,
+        });
+        let response = self.rt.block_on(self.client.rmdir(request))?.into_inner();
+        Ok(response.result)
+    }
+    
+    pub fn grpc_fstat_size(&mut self, fd: i32) -> Result<i64, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(FstatRequest {
+            fd: fd,
+        });
+    
+        let response = self.rt.block_on(self.client.fstat(request))?.into_inner();
+        Ok(response.size)
+    }
+
 }
 
-pub fn grpc_read(fd: i32, page: &mut Vec<u8>, size: usize) 
-    -> Result<i32, Box<dyn std::error::Error>> {
-    grpc_read_base(false, fd, page, size, 0)
-}
-
-pub fn grpc_pread(fd: i32, page: &mut Vec<u8>, size: usize, offset: i64) 
-    -> Result<i32, Box<dyn std::error::Error>> {
-    grpc_read_base(true, fd, page, size, offset)
-}
-
-fn grpc_write_base(pwrite: bool, fd: i32, page: &Vec<u8>, len: usize, offset: i64) 
-    -> Result<i32, Box<dyn std::error::Error>> {
-
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
-    let request = tonic::Request::new(WriteRequest {
-        pwrite: pwrite,
-        fd: fd,
-        page: page.to_vec(),
-        len: len as u32,
-        offset: offset,
-    });
-
-    let response = rt.block_on(client.write(request))?.into_inner();
-    Ok(response.result)
-}
-
-pub fn grpc_write(fd: i32, page: &Vec<u8>, size: usize)
-    -> Result<i32, Box<dyn std::error::Error>> {
-    grpc_write_base(false, fd, page, size, 0)
-}
-
-pub fn grpc_pwrite(fd: i32, page: &Vec<u8>, size: usize, offset: i64)
-    -> Result<i32, Box<dyn std::error::Error>> {
-    grpc_write_base(true, fd, page, size, offset)
-}
-
-pub fn grpc_close(fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
-    let request = tonic::Request::new(CloseRequest {
-        fd: fd,
-    });
-
-    let response = rt.block_on(client.close(request))?.into_inner();
-    Ok(response.result)
-}
-
-pub fn grpc_remove(path: &str) -> Result<i32, Box<dyn std::error::Error>> {
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
-    let request = tonic::Request::new(RemoveRequest {
-        path: path.to_string(),
-    });
-    let response = rt.block_on(client.remove(request))?.into_inner();
-    Ok(response.result)
-}
-
-pub fn grpc_fsync(fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
-    let request = tonic::Request::new(FsyncRequest {
-        fd: fd,
-    });
-
-    let response = rt.block_on(client.fsync(request))?.into_inner();
-    Ok(response.result)
-}
-
-pub fn grpc_mkdir(path: &str, mode: u32) -> Result<i32, Box<dyn std::error::Error>> {
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
-    let request = tonic::Request::new(DirRequest {
-        path: path.to_string(),
-        mode: mode,
-    });
-    let response = rt.block_on(client.mkdir(request))?.into_inner();
-    Ok(response.result)
-}
-
-pub fn grpc_rmdir(path: &str) -> Result<i32, Box<dyn std::error::Error>> {
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
-    let request = tonic::Request::new(DirRequest {
-        path: path.to_string(),
-        mode: 0,
-    });
-    let response = rt.block_on(client.rmdir(request))?.into_inner();
-    Ok(response.result)
-}
-
-pub fn grpc_fstat_size(fd: i32) -> Result<i64, Box<dyn std::error::Error>> {
-
-    let rt = Builder::new_multi_thread().enable_all().build().unwrap();
-    let mut client = rt.block_on(SyscallClient::connect("http://[::1]:8080"))?;
-    let request = tonic::Request::new(FstatRequest {
-        fd: fd,
-    });
-
-    let response = rt.block_on(client.fstat(request))?.into_inner();
-    Ok(response.size)
-}
 //////////////////////////////////////// SERVER ////////////////////////////////////////
 
 #[derive(Debug, Default)]
