@@ -1,16 +1,17 @@
-use libc::{O_CREAT, O_RDWR, S_IRWXU};
 use fxmark_grpc::*;
+use libc::{O_CREAT, O_RDWR, S_IRWXU};
 
 const PAGE_SIZE: usize = 1024;
 
 fn read_test_base(pread: bool) -> Result<(), Box<dyn std::error::Error>> {
-
     let mut client = BlockingClient::connect("http://[::1]:8080")?;
 
     let test = if pread { "pReadTest" } else { "ReadTest" };
 
     let filename = "read_test.txt";
-    let fd = client.grpc_open(filename, O_CREAT | O_RDWR, S_IRWXU).unwrap();
+    let fd = client
+        .grpc_open(filename, O_CREAT | O_RDWR, S_IRWXU)
+        .unwrap();
     assert!(fd != -1, "{}: Open Failed", test);
 
     // let page: &mut [u8; PAGE_SIZE] = &mut [0; PAGE_SIZE];
@@ -24,12 +25,17 @@ fn read_test_base(pread: bool) -> Result<(), Box<dyn std::error::Error>> {
 
     let binding = String::from_utf8(page).unwrap();
     let page_str = binding.trim_matches(char::from(0));
-    assert!(page_str == "ReadTest\n", "{}: read request returned the following data: {:?}", test, page_str); 
+    assert!(
+        page_str == "ReadTest\n",
+        "{}: read request returned the following data: {:?}",
+        test,
+        page_str
+    );
 
     let result = client.grpc_fsync(fd).unwrap();
     assert!(result != -1, "{}: Fsync Failed", test);
 
-    let result = client.grpc_close(fd).unwrap(); 
+    let result = client.grpc_close(fd).unwrap();
     assert!(result != -1, "{}: Close Failed", test);
 
     Ok(())
@@ -46,22 +52,25 @@ fn pread_test() -> Result<(), Box<dyn std::error::Error>> {
 }
 
 fn write_test_base(pwrite: bool) -> Result<(), Box<dyn std::error::Error>> {
-
     let mut client = BlockingClient::connect("http://[::1]:8080")?;
 
     let test = if pwrite { "pWriteTest" } else { "WriteTest" };
-    
-    let filename = format!("{}{}", test, ".txt"); 
-    let fd = client.grpc_open(&filename, O_CREAT | O_RDWR, S_IRWXU).unwrap();
+
+    let filename = format!("{}{}", test, ".txt");
+    let fd = client
+        .grpc_open(&filename, O_CREAT | O_RDWR, S_IRWXU)
+        .unwrap();
     assert!(fd != -1, "{}: Open Failed", test);
 
     let page = "WriteTest".as_bytes();
     let result = if pwrite {
-        client.grpc_pwrite(fd, &page.to_vec(), page.len(), 0).unwrap()
+        client
+            .grpc_pwrite(fd, &page.to_vec(), page.len(), 0)
+            .unwrap()
     } else {
         client.grpc_write(fd, &page.to_vec(), page.len()).unwrap()
     };
-    
+
     // Length of test in files/read_test.txt
     assert!(result != -1, "{}: Write Failed", test);
 
@@ -89,11 +98,12 @@ fn pwrite_test() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn write_read_test() -> Result<(), Box<dyn std::error::Error>> {
-
     let mut client = BlockingClient::connect("http://[::1]:8080")?;
-    
+
     let filename = "write_read_test.txt";
-    let fd = client.grpc_open(filename, O_CREAT | O_RDWR, S_IRWXU).unwrap();
+    let fd = client
+        .grpc_open(filename, O_CREAT | O_RDWR, S_IRWXU)
+        .unwrap();
     assert!(fd != -1, "WriteReadTest: Open Failed");
 
     let page = "WriteReadTest".as_bytes();
@@ -106,13 +116,15 @@ fn write_read_test() -> Result<(), Box<dyn std::error::Error>> {
 
     let binding = String::from_utf8(page).unwrap();
     let page_str = binding.trim_matches(char::from(0));
-    assert!(page_str == "WriteReadTest", 
+    assert!(
+        page_str == "WriteReadTest",
         "WriteReadTest: read request returned the following data: {:?}",
-        page_str);
+        page_str
+    );
 
     let result = client.grpc_fsync(fd).unwrap();
     assert!(result != -1, "WriteReadTest: Fsync Failed");
-    
+
     let result = client.grpc_close(fd).unwrap();
     assert!(result != -1, "WriteReadTest: Close Failed");
 
@@ -124,9 +136,8 @@ fn write_read_test() -> Result<(), Box<dyn std::error::Error>> {
 
 #[test]
 fn dir_test() -> Result<(), Box<dyn std::error::Error>> {
-    
     let mut client = BlockingClient::connect("http://[::1]:8080")?;
-    
+
     let dirname = "dirTest";
     let res = client.grpc_mkdir(dirname, S_IRWXU).unwrap();
     assert!(res != 1, "DirTest: Mkdir Failed");
@@ -134,5 +145,5 @@ fn dir_test() -> Result<(), Box<dyn std::error::Error>> {
     let res = client.grpc_rmdir(dirname).unwrap();
     assert!(res != -1, "DirTest: Rmdir Failed");
 
-    Ok(()) 
-} 
+    Ok(())
+}

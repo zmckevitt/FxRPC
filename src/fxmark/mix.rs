@@ -4,14 +4,14 @@
 extern crate alloc;
 
 use crate::fxmark::{Bench, MAX_OPEN_FILES, PAGE_SIZE};
+use alloc::sync::Arc;
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
-use x86::random::rdrand16;
 use libc::{O_CREAT, O_RDWR, S_IRWXU};
 use std::sync::Mutex;
-use alloc::sync::Arc;
+use x86::random::rdrand16;
 
 use fxmark_grpc::*;
 
@@ -50,20 +50,17 @@ impl Bench for MIX {
         *self.min_core.borrow_mut() = *cores.iter().min().unwrap() as usize;
         *self.open_files.borrow_mut() = open_files;
         for file_num in 0..open_files {
-        let filename = format!("file{}.txt", file_num);
+            let filename = format!("file{}.txt", file_num);
             let fd = {
                 let mut client1 = client.lock().unwrap();
-                client1.grpc_open(
-                    &filename,
-                    O_RDWR | O_CREAT,
-                    S_IRWXU,
-                )
+                client1.grpc_open(&filename, O_RDWR | O_CREAT, S_IRWXU)
             }
             .expect("FileOpen syscall failed");
 
             let ret = {
-                let mut client1 = client.lock().unwrap(); 
-                client1.grpc_pwrite(fd, &self.page, PAGE_SIZE, self.size)
+                let mut client1 = client.lock().unwrap();
+                client1
+                    .grpc_pwrite(fd, &self.page, PAGE_SIZE, self.size)
                     .expect("FileWriteAt syscall failed")
             };
             assert_eq!(ret, PAGE_SIZE as i32);
@@ -77,9 +74,8 @@ impl Bench for MIX {
         duration: u64,
         core: usize,
         write_ratio: usize,
-        client: &mut Arc<Mutex<BlockingClient>>
+        client: &mut Arc<Mutex<BlockingClient>>,
     ) -> Vec<usize> {
-        
         let mut iops_per_second = Vec::with_capacity(duration as usize);
 
         let file_num = (core % self.max_open_files) % *self.open_files.borrow();
@@ -93,7 +89,9 @@ impl Bench for MIX {
 
         {
             let mut client1 = client.lock().unwrap();
-            client1.grpc_pwrite(fd as i32, &page, PAGE_SIZE, self.size).expect("can't write_at");
+            client1
+                .grpc_pwrite(fd as i32, &page, PAGE_SIZE, self.size)
+                .expect("can't write_at");
         }
 
         // Synchronize with all cores
@@ -116,14 +114,16 @@ impl Bench for MIX {
 
                     let mut client1 = client.lock().unwrap();
                     if random_num as usize % 100 < write_ratio {
-                        if client1.grpc_pwrite(fd as i32, &page, PAGE_SIZE, offset as i64)
+                        if client1
+                            .grpc_pwrite(fd as i32, &page, PAGE_SIZE, offset as i64)
                             .expect("FileWriteAt syscall failed")
                             != PAGE_SIZE as i32
                         {
                             panic!("MIX: write_at() failed");
                         }
                     } else {
-                        if client1.grpc_pread(fd as i32, &mut page, PAGE_SIZE, offset as i64)
+                        if client1
+                            .grpc_pread(fd as i32, &mut page, PAGE_SIZE, offset as i64)
                             .expect("FileReadAt syscall failed")
                             != PAGE_SIZE as i32
                         {
@@ -144,7 +144,9 @@ impl Bench for MIX {
         // To avoid explicit GC in mlnr.
         while poor_mans_barrier.load(Ordering::Acquire) != num_cores {
             let mut client1 = client.lock().unwrap();
-            client1.grpc_pread(fd as i32, &mut page[0..1].to_vec(), PAGE_SIZE, 0).expect("can't read_at");
+            client1
+                .grpc_pread(fd as i32, &mut page[0..1].to_vec(), PAGE_SIZE, 0)
+                .expect("can't read_at");
         }
 
         if core == *self.min_core.borrow() {
@@ -153,7 +155,9 @@ impl Bench for MIX {
             for i in 0..*self.open_files.borrow() {
                 let fd = self.fds.borrow()[i];
                 let mut client1 = client.lock().unwrap();
-                client1.grpc_close(fd as i32).expect("FileClose syscall failed");
+                client1
+                    .grpc_close(fd as i32)
+                    .expect("FileClose syscall failed");
             }
         }
         iops_per_second.clone()

@@ -6,11 +6,11 @@
 extern crate alloc;
 
 use std::convert::TryInto;
-use std::time::Duration;
-use std::thread;
 use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::Mutex;
+use std::thread;
+use std::time::Duration;
 
 use alloc::string::{String, ToString};
 use alloc::sync::Arc;
@@ -88,11 +88,16 @@ pub trait Bench {
         duration: u64,
         core: usize,
         write_ratio: usize,
-        client: &mut Arc<Mutex<BlockingClient>>
+        client: &mut Arc<Mutex<BlockingClient>>,
     ) -> Vec<usize>;
 }
 
-unsafe extern "C" fn fxmark_bencher_trampoline<T>(arg: *mut u8, cores: usize, core_id: usize, client: &mut Arc<Mutex<BlockingClient>>) -> *mut u8
+unsafe extern "C" fn fxmark_bencher_trampoline<T>(
+    arg: *mut u8,
+    cores: usize,
+    core_id: usize,
+    client: &mut Arc<Mutex<BlockingClient>>,
+) -> *mut u8
 where
     T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
 {
@@ -129,7 +134,6 @@ where
         write_ratio: usize,
         open_files: usize,
     ) -> MicroBench<'a, T> {
-        
         let mapping = ThreadMapping::Sequential;
         let topology = MachineTopology::new();
         let max_cores = topology.cores() / 2;
@@ -143,12 +147,12 @@ where
         } else {
             2
         };
-       
+
         let mut threads = Vec::new();
- 
-        for t in (0..(max_cores+1)).step_by(thread_increments) {
+
+        for t in (0..(max_cores + 1)).step_by(thread_increments) {
             if t == 0 {
-                threads.push(t+1);
+                threads.push(t + 1);
             } else {
                 threads.push(t);
             }
@@ -160,8 +164,8 @@ where
         thread_mapping.push(mapping);
 
         MicroBench {
-            thread_mappings: thread_mapping, 
-            threads: threads, 
+            thread_mappings: thread_mapping,
+            threads: threads,
             benchmark,
             write_ratio,
             open_files,
@@ -169,14 +173,15 @@ where
         }
     }
 
-    fn fxmark_bencher(&self, 
-                      cores: usize, 
-                      core_id: usize, 
-                      benchmark: &str, 
-                      write_ratio: usize, 
-                      open_files: usize,
-                      client: &mut Arc<Mutex<BlockingClient>>) {
-
+    fn fxmark_bencher(
+        &self,
+        cores: usize,
+        core_id: usize,
+        benchmark: &str,
+        write_ratio: usize,
+        open_files: usize,
+        client: &mut Arc<Mutex<BlockingClient>>,
+    ) {
         let bench_duration_secs = if cfg!(feature = "smoke") { 1 } else { 10 };
         let iops = self.bench.run(
             &POOR_MANS_BARRIER,
@@ -204,7 +209,7 @@ where
                     iteration,
                     iops[iteration as usize]
                 )
-                .as_bytes()
+                .as_bytes(),
             );
             assert!(r.is_ok());
         }
@@ -226,15 +231,15 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
         open_files: usize,
         write_ratio: usize,
     ) {
-
-        let mut client = std::sync::Arc::new(Mutex::new(BlockingClient::connect("http://[::1]:8080").unwrap()));
+        let mut client = std::sync::Arc::new(Mutex::new(
+            BlockingClient::connect("http://[::1]:8080").unwrap(),
+        ));
 
         let thread_mappings = microbench.thread_mappings.clone();
         let threads = microbench.threads.clone();
 
         for tm in thread_mappings.iter() {
             for ts in threads.iter() {
-
                 let topology = MachineTopology::new();
                 utils::disable_dvfs();
 
@@ -250,7 +255,7 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
                 let mut thandles = Vec::with_capacity(cores.len());
                 // Set up barrier
                 POOR_MANS_BARRIER.store(cores.len(), Ordering::SeqCst);
-                
+
                 let mb = microbench.clone();
                 mb.bench.init(cores.clone(), open_files, &mut client);
 
@@ -262,7 +267,14 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
                     thandles.push(thread::spawn(move || {
                         utils::pin_thread(core_id);
                         let arg = Arc::into_raw(mb1) as *const _ as *mut u8;
-                        unsafe { fxmark_bencher_trampoline::<T>(arg, clen, core_id as usize, &mut client1); }
+                        unsafe {
+                            fxmark_bencher_trampoline::<T>(
+                                arg,
+                                clen,
+                                core_id as usize,
+                                &mut client1,
+                            );
+                        }
                     }));
                 }
 
@@ -273,16 +285,9 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
         }
     }
 
-
     if benchmark == "mix" {
-        let mb = MicroBench::<MIX>::new(
-                "mix",
-                write_ratio,
-                open_files,
-            );
-        let microbench = Arc::new(
-            mb,
-        );
+        let mb = MicroBench::<MIX>::new("mix", write_ratio, open_files);
+        let microbench = Arc::new(mb);
         // microbench.bench.init(cores.clone(), open_files);
         start::<MIX>(microbench, open_files, write_ratio);
     }
