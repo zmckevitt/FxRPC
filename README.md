@@ -13,7 +13,13 @@ Distributed fxmark benchmark using gRPC. Project uses gRPC to pass basic file re
 
 ## Building
 
-This project contains a client/server library for distributed syscalls using gRPC. To build the project, first install the necessary dependencies:
+This project contains a client/server library for distributed syscalls using gRPC. To build the project, first install the necessary dependencies.
+Rust:
+```
+curl --proto '=https' --tlsv1.3 https://sh.rustup.rs -sSf | sh
+source "$HOME/.cargo/env"
+```
+gRPC:
 ```
 sudo apt install protobuf-compiler
 ```
