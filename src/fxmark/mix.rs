@@ -52,14 +52,17 @@ impl Bench for MIX {
         for file_num in 0..open_files {
             let filename = format!("file{}.txt", file_num);
             let fd = {
-                let mut client1 = client.lock().unwrap();
-                client1.grpc_open(&filename, O_RDWR | O_CREAT, S_IRWXU)
+                client
+                    .lock()
+                    .unwrap()
+                    .grpc_open(&filename, O_RDWR | O_CREAT, S_IRWXU)
             }
             .expect("FileOpen syscall failed");
 
             let ret = {
-                let mut client1 = client.lock().unwrap();
-                client1
+                client
+                    .lock()
+                    .unwrap()
                     .grpc_pwrite(fd, &self.page, PAGE_SIZE, self.size)
                     .expect("FileWriteAt syscall failed")
             };
@@ -88,8 +91,9 @@ impl Bench for MIX {
         let mut page: Vec<u8> = vec![0; PAGE_SIZE as usize];
 
         {
-            let mut client1 = client.lock().unwrap();
-            client1
+            client
+                .lock()
+                .unwrap()
                 .grpc_pwrite(fd as i32, &page, PAGE_SIZE, self.size)
                 .expect("can't write_at");
         }
@@ -112,9 +116,10 @@ impl Bench for MIX {
                     let rand = random_num as usize % total_pages;
                     let offset = rand * 4096;
 
-                    let mut client1 = client.lock().unwrap();
                     if random_num as usize % 100 < write_ratio {
-                        if client1
+                        if client
+                            .lock()
+                            .unwrap()
                             .grpc_pwrite(fd as i32, &page, PAGE_SIZE, offset as i64)
                             .expect("FileWriteAt syscall failed")
                             != PAGE_SIZE as i32
@@ -122,7 +127,9 @@ impl Bench for MIX {
                             panic!("MIX: write_at() failed");
                         }
                     } else {
-                        if client1
+                        if client
+                            .lock()
+                            .unwrap()
                             .grpc_pread(fd as i32, &mut page, PAGE_SIZE, offset as i64)
                             .expect("FileReadAt syscall failed")
                             != PAGE_SIZE as i32
@@ -143,8 +150,9 @@ impl Bench for MIX {
         let num_cores = *self.cores.borrow();
         // To avoid explicit GC in mlnr.
         while poor_mans_barrier.load(Ordering::Acquire) != num_cores {
-            let mut client1 = client.lock().unwrap();
-            client1
+            client
+                .lock()
+                .unwrap()
                 .grpc_pread(fd as i32, &mut page[0..1].to_vec(), PAGE_SIZE, 0)
                 .expect("can't read_at");
         }
@@ -154,8 +162,9 @@ impl Bench for MIX {
             while start.elapsed().as_secs() < 1 {}
             for i in 0..*self.open_files.borrow() {
                 let fd = self.fds.borrow()[i];
-                let mut client1 = client.lock().unwrap();
-                client1
+                client
+                    .lock()
+                    .unwrap()
                     .grpc_close(fd as i32)
                     .expect("FileClose syscall failed");
             }
