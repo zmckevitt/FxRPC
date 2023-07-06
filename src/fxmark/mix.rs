@@ -11,6 +11,7 @@ use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use libc::{O_CREAT, O_RDWR, S_IRWXU};
 use std::sync::Mutex;
+use std::{thread, time};
 use x86::random::rdrand16;
 
 use fxmark_grpc::*;
@@ -150,6 +151,8 @@ impl Bench for MIX {
         let num_cores = *self.cores.borrow();
         // To avoid explicit GC in mlnr.
         while poor_mans_barrier.load(Ordering::Acquire) != num_cores {
+            // Need this to avoid mutex starvation
+            thread::sleep(time::Duration::from_millis(10));
             client
                 .lock()
                 .unwrap()
