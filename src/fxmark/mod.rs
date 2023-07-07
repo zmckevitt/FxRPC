@@ -245,6 +245,7 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
 
                 let cpus = topology.allocate(*tm, *ts, false);
                 let cores: Vec<u64> = cpus.iter().map(|c| c.cpu).collect();
+                let clen = cores.len();
 
                 println!(
                     "Run Benchmark={} TM={} Cores={}; Write-Ratio={} Open-Files={}",
@@ -252,21 +253,21 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
                 );
 
                 // currently we'll run out of 4 KiB frames
-                let mut thandles = Vec::with_capacity(cores.len());
+                let mut thandles = Vec::with_capacity(clen);
                 // Set up barrier
-                POOR_MANS_BARRIER.store(cores.len(), Ordering::SeqCst);
+                POOR_MANS_BARRIER.store(clen, Ordering::SeqCst);
 
-                let mb = microbench.clone();
-                mb.bench.init(cores.clone(), open_files, &mut client);
 
-                let clen = cores.len();
 
-                for core_id in cores {
-                    let mb1 = mb.clone();
+                for core_id in cores.clone() {
+
+                	let mb = microbench.clone();
+	                mb.bench.init(cores.clone(), open_files, &mut client);
+
                     let mut client1 = client.clone();
                     thandles.push(thread::spawn(move || {
                         utils::pin_thread(core_id);
-                        let arg = Arc::into_raw(mb1) as *const _ as *mut u8;
+                        let arg = Arc::into_raw(mb) as *const _ as *mut u8;
                         unsafe {
                             fxmark_bencher_trampoline::<T>(
                                 arg,
