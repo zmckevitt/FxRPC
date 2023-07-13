@@ -218,7 +218,7 @@ where
 
 pub fn max_open_files() -> usize {
     let topology = MachineTopology::new();
-    topology.cores() / 2
+    topology.cores()
 }
 
 pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
