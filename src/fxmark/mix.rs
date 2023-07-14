@@ -11,7 +11,6 @@ use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use libc::{O_CREAT, O_RDWR, S_IRWXU};
 use std::sync::Mutex;
-use std::{thread, time};
 use x86::random::rdrand16;
 
 use fxmark_grpc::*;
@@ -149,15 +148,8 @@ impl Bench for MIX {
 
         poor_mans_barrier.fetch_add(1, Ordering::Release);
         let num_cores = *self.cores.borrow();
-        // To avoid explicit GC in mlnr.
         while poor_mans_barrier.load(Ordering::Acquire) != num_cores {
-            // Need this to avoid mutex starvation
-            thread::sleep(time::Duration::from_millis(10));
-            client
-                .lock()
-                .unwrap()
-                .grpc_pread(fd as i32, &mut page[0..1].to_vec(), PAGE_SIZE, 0)
-                .expect("can't read_at");
+            core::hint::spin_loop();
         }
 
         if core == *self.min_core.borrow() {
