@@ -775,6 +775,17 @@ def configure_dcm_scheduler(args):
     os.symlink(dcm_path, symlink_jar_path)
 
 
+TIMEOUT = 60 
+def qemu_run():
+    cmd = "sudo qemu-system-x86_64 focal-server-cloudimg-amd64.img -enable-kvm -nographic -netdev tap,id=nd0,ifname=tap0 -device e1000,netdev=nd0 -m 1024"
+    child = pexpect.spawn(cmd)
+    # give guest time to boot
+    sleep(TIMEOUT)
+    child.sendline("ls -l")
+    child.expect("root@jammy:~# ")
+    output = child.before
+    print("{}".format(output))
+
 #
 # Main routine of run.py
 #
@@ -816,6 +827,9 @@ if __name__ == '__main__':
             sys.exit(errno.EINVAL)
         else:
             raise e
+
+
+    qemu_run()
     """
     # Setup DCM scheduler jar
     configure_dcm_scheduler(args)
