@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use std::convert::TryInto;
-use std::fs::OpenOptions;
+use std::fs::{OpenOptions, remove_file};
 use std::io::Write;
 use std::sync::Mutex;
 use std::thread;
@@ -30,6 +30,7 @@ mod mix;
 use crate::fxmark::mix::MIX;
 
 use fxmark_grpc::BlockingClient;
+use fxmark_grpc::LogMode;
 
 const PAGE_SIZE: usize = 1008;
 
@@ -97,6 +98,7 @@ unsafe extern "C" fn fxmark_bencher_trampoline<T>(
     cores: usize,
     core_id: usize,
     client: &mut Arc<Mutex<BlockingClient>>,
+    log_mode: Arc<LogMode>, 
 ) -> *mut u8
 where
     T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -109,6 +111,7 @@ where
         bench.write_ratio,
         bench.open_files,
         client,
+        log_mode,
     );
     ptr::null_mut()
 }
@@ -182,6 +185,7 @@ where
         write_ratio: usize,
         open_files: usize,
         client: &mut Arc<Mutex<BlockingClient>>,
+        log_mode: Arc<LogMode>,
     ) {
         let bench_duration_secs = if cfg!(feature = "smoke") { 1 } else { 10 };
         let iops = self.bench.run(
@@ -198,21 +202,27 @@ where
             .open(OUTPUT_FILE)
             .expect("Cant open output file");
         for iteration in 1..(bench_duration_secs + 1) {
-            let r = csv_file.write(
-                format!(
-                    "{},{:?},{},{},{},{},{},{}\n",
-                    core_id,
-                    benchmark,
-                    cores,
-                    write_ratio,
-                    open_files,
-                    bench_duration_secs,
-                    iteration,
-                    iops[iteration as usize]
-                )
-                .as_bytes(),
+            let row = format!(
+                "{},{:?},{},{},{},{},{},{}\n",
+                core_id,
+                benchmark,
+                cores,
+                write_ratio,
+                open_files,
+                bench_duration_secs,
+                iteration,
+                iops[iteration as usize]
             );
-            assert!(r.is_ok());
+
+            match *log_mode {
+                LogMode::CSV => {
+                    let r = csv_file.write(row.as_bytes());
+                    assert!(r.is_ok());
+                }
+                LogMode::STDOUT => {
+                    print!("{}", row);
+                }
+            }
         }
     }
 }
@@ -222,7 +232,7 @@ pub fn max_open_files() -> usize {
     topology.cores()
 }
 
-pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
+pub fn bench(open_files: usize, benchmark: String, write_ratio: usize, client: Arc<Mutex<BlockingClient>>, log_mode: Arc<LogMode>) {
 
     fn start<
         T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -230,10 +240,27 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
         microbench: MicroBench<'static, T>,
         open_files: usize,
         write_ratio: usize,
+        mut client: Arc<Mutex<BlockingClient>>,
+        log_mode: Arc<LogMode>,
     ) {
-        let mut client = std::sync::Arc::new(Mutex::new(
-            BlockingClient::connect("http://[::1]:8080").unwrap(),
-        ));
+
+        let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations\n";
+        match *log_mode {
+            LogMode::CSV => {
+                let _ = remove_file(OUTPUT_FILE);
+
+                let mut csv_file = OpenOptions::new()
+                    .append(true)
+                    .create(true)
+                    .open(OUTPUT_FILE)
+                    .expect("Cant open output file");
+                let r = csv_file.write(row.as_bytes());
+                assert!(r.is_ok());
+            }
+            LogMode::STDOUT => {
+                print!("{}", row);
+            }
+        }
 
         let thread_mappings = microbench.thread_mappings.clone();
         let threads = microbench.threads.clone();
@@ -247,10 +274,12 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
                 let cores: Vec<u64> = cpus.iter().map(|c| c.cpu).collect();
                 let clen = cores.len();
 
-                println!(
-                    "Run Benchmark={} TM={} Cores={}; Write-Ratio={} Open-Files={}",
-                    microbench.benchmark, *tm, ts, write_ratio, open_files
-                );
+                if matches!(*log_mode, LogMode::CSV) {
+                    println!(
+                        "Run Benchmark={} TM={} Cores={}; Write-Ratio={} Open-Files={}",
+                        microbench.benchmark, *tm, ts, write_ratio, open_files
+                    );
+                }
 
                 // currently we'll run out of 4 KiB frames
                 let mut thandles = Vec::with_capacity(clen);
@@ -263,6 +292,7 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
 	                mb.bench.init(cores.clone(), open_files, &mut client);
 
                     let mut client1 = client.clone();
+                    let mode = log_mode.clone();
                     thandles.push(thread::spawn(move || {
                         utils::pin_thread(core_id);
                         let arg = Arc::into_raw(mb) as *const _ as *mut u8;
@@ -272,6 +302,7 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
                                 clen,
                                 core_id as usize,
                                 &mut client1,
+                                mode, 
                             );
                         }
                     }));
@@ -286,6 +317,6 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
 
     if benchmark == "mix" {
         let mb = MicroBench::<MIX>::new("mix", write_ratio, open_files);
-        start::<MIX>(mb, open_files, write_ratio);
+        start::<MIX>(mb, open_files, write_ratio, client, log_mode);
     }
 }

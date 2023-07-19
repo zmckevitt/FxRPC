@@ -22,6 +22,11 @@ pub const PATH: &str = "/dev/shm/";
 
 // pub const PAGE_SIZE: usize = 1024;
 
+pub enum LogMode {
+    CSV,
+    STDOUT,
+}
+
 pub mod syscalls {
     tonic::include_proto!("syscalls");
 }

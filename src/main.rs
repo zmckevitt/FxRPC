@@ -4,11 +4,10 @@
 */
 
 use clap::{crate_version, value_t, App, Arg};
-use std::fs::{remove_file, OpenOptions};
-use std::io::Write;
+use std::sync::{Arc, Mutex};
 
 mod fxmark;
-use crate::fxmark::{bench, OUTPUT_FILE};
+use crate::fxmark::bench;
 
 use fxmark_grpc::*;
 
@@ -22,9 +21,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::with_name("mode")
                 .long("mode")
                 .required(true)
-                .help("client or server")
+                .help("loc_client, emu_client, or server")
                 .takes_value(true)
-                .possible_values(&["client", "server"]),
+                .possible_values(&["loc_client", "emu_client", "server"]),
         )
         .arg(
             Arg::with_name("port")
@@ -43,7 +42,25 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());
             start_rpc_server(port)
         }
-        "client" => {
+        "loc_client" | "emu_client" => {
+
+            let host_addr = if mode == "loc_client" { 
+                "http://[::1]:8080"
+            } else {
+                "http://172.31.0.1:8080" 
+            };
+
+            let client = Arc::new(Mutex::new(
+                BlockingClient::connect(host_addr).unwrap(),
+            ));
+           
+            let log_mode = Arc::new(if mode == "loc_client" {
+                LogMode::CSV
+            }
+            else {
+                LogMode::STDOUT
+            });
+            /* 
             let _ = remove_file(OUTPUT_FILE);
 
             let mut csv_file = OpenOptions::new()
@@ -52,12 +69,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .open(OUTPUT_FILE)
                 .expect("Cant open output file");
             let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations\n";
-            let r = csv_file.write(row.as_bytes());
-            assert!(r.is_ok());
 
-            bench(1, bench_name.clone(), 0);
-            bench(1, bench_name.clone(), 10);
-            bench(1, bench_name.clone(), 100);
+            match *log_mode {
+                LogMode::CSV => {
+                    let r = csv_file.write(row.as_bytes());
+                    assert!(r.is_ok());
+                }
+                LogMode::STDOUT => {
+                    print!("{}", row);
+                }
+            }
+            */
+            bench(1, bench_name.clone(), 0, client.clone(), log_mode.clone());
+            bench(1, bench_name.clone(), 10, client.clone(), log_mode.clone());
+            bench(1, bench_name.clone(), 100, client.clone(), log_mode.clone());
         }
         _ => panic!("Unknown mode!"),
     }
