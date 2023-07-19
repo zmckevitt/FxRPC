@@ -4,9 +4,9 @@
 */
 
 use clap::{crate_version, value_t, App, Arg};
-use std::sync::{Arc, Mutex};
 use std::fs::{remove_file, OpenOptions};
 use std::io::Write;
+use std::sync::{Arc, Mutex};
 
 mod fxmark;
 use crate::fxmark::{bench, OUTPUT_FILE};
@@ -47,25 +47,21 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             } else {
                 "172.31.0.1"
             };
-            
+
             start_rpc_server(bind_addr, port)
         }
         "loc_client" | "emu_client" => {
-
-            let host_addr = if mode == "loc_client" { 
+            let host_addr = if mode == "loc_client" {
                 "http://[::1]:8080"
             } else {
-                "http://172.31.0.1:8080" 
+                "http://172.31.0.1:8080"
             };
 
-            let client = Arc::new(Mutex::new(
-                BlockingClient::connect(host_addr).unwrap(),
-            ));
-           
+            let client = Arc::new(Mutex::new(BlockingClient::connect(host_addr).unwrap()));
+
             let log_mode = Arc::new(if mode == "loc_client" {
                 LogMode::CSV
-            }
-            else {
+            } else {
                 LogMode::STDOUT
             });
 
@@ -87,7 +83,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     print!("{}", row);
                 }
             }
- 
+
             bench(1, bench_name.clone(), 0, client.clone(), log_mode.clone());
             bench(1, bench_name.clone(), 10, client.clone(), log_mode.clone());
             bench(1, bench_name.clone(), 100, client.clone(), log_mode.clone());

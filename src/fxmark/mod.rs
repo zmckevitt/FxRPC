@@ -98,7 +98,7 @@ unsafe extern "C" fn fxmark_bencher_trampoline<T>(
     cores: usize,
     core_id: usize,
     client: &mut Arc<Mutex<BlockingClient>>,
-    log_mode: Arc<LogMode>, 
+    log_mode: Arc<LogMode>,
 ) -> *mut u8
 where
     T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -232,8 +232,13 @@ pub fn max_open_files() -> usize {
     topology.cores()
 }
 
-pub fn bench(open_files: usize, benchmark: String, write_ratio: usize, client: Arc<Mutex<BlockingClient>>, log_mode: Arc<LogMode>) {
-
+pub fn bench(
+    open_files: usize,
+    benchmark: String,
+    write_ratio: usize,
+    client: Arc<Mutex<BlockingClient>>,
+    log_mode: Arc<LogMode>,
+) {
     fn start<
         T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
     >(
@@ -243,7 +248,6 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize, client: A
         mut client: Arc<Mutex<BlockingClient>>,
         log_mode: Arc<LogMode>,
     ) {
-
         let thread_mappings = microbench.thread_mappings.clone();
         let threads = microbench.threads.clone();
 
@@ -269,9 +273,8 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize, client: A
                 POOR_MANS_BARRIER.store(clen, Ordering::SeqCst);
 
                 for core_id in cores.clone() {
-
-                	let mb = Arc::new(microbench.clone());
-	                mb.bench.init(cores.clone(), open_files, &mut client);
+                    let mb = Arc::new(microbench.clone());
+                    mb.bench.init(cores.clone(), open_files, &mut client);
 
                     let mut client1 = client.clone();
                     let mode = log_mode.clone();
@@ -284,7 +287,7 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize, client: A
                                 clen,
                                 core_id as usize,
                                 &mut client1,
-                                mode, 
+                                mode,
                             );
                         }
                     }));
