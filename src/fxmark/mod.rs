@@ -223,7 +223,6 @@ pub fn max_open_files() -> usize {
 }
 
 pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
-    // info!("thread_id,benchmark,core,write_ratio,open_files,duration_total,duration,operations");
 
     fn start<
         T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -287,8 +286,6 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
 
     if benchmark == "mix" {
         let mb = MicroBench::<MIX>::new("mix", write_ratio, open_files);
-        // let microbench = Arc::new(mb);
-        // microbench.bench.init(cores.clone(), open_files);
         start::<MIX>(mb, open_files, write_ratio);
     }
 }
