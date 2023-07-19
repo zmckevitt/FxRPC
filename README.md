@@ -47,7 +47,7 @@ echo "ReadTest" > /dev/shm/read_test.txt
 ```
 Run the server:
 ```
-cargo run -- --mode server --port 8080
+cargo run -- --mode loc_server --port 8080
 ```
 Run the tests:
 ```
