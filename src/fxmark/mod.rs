@@ -6,7 +6,7 @@
 extern crate alloc;
 
 use std::convert::TryInto;
-use std::fs::{OpenOptions, remove_file};
+use std::fs::OpenOptions;
 use std::io::Write;
 use std::sync::Mutex;
 use std::thread;
@@ -243,24 +243,6 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize, client: A
         mut client: Arc<Mutex<BlockingClient>>,
         log_mode: Arc<LogMode>,
     ) {
-
-        let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations\n";
-        match *log_mode {
-            LogMode::CSV => {
-                let _ = remove_file(OUTPUT_FILE);
-
-                let mut csv_file = OpenOptions::new()
-                    .append(true)
-                    .create(true)
-                    .open(OUTPUT_FILE)
-                    .expect("Cant open output file");
-                let r = csv_file.write(row.as_bytes());
-                assert!(r.is_ok());
-            }
-            LogMode::STDOUT => {
-                print!("{}", row);
-            }
-        }
 
         let thread_mappings = microbench.thread_mappings.clone();
         let threads = microbench.threads.clone();

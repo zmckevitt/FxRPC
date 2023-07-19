@@ -416,9 +416,9 @@ impl Syscall for SyscallService {
     }
 }
 
-pub fn start_rpc_server(port: u64) {
+pub fn start_rpc_server(bind_addr: &str, port: u64) {
     // Create Syscall server
-    let address = format!("[::1]:{}", port).parse().unwrap();
+    let address = format!("{}:{}", bind_addr, port).parse().unwrap();
     let syscalls_service = SyscallService::default();
 
     println!("Starting server on port {}", port);
