@@ -33,9 +33,9 @@ cargo build
 
 This project makes use of the ```mixXX``` benchmarks from the Fxmark filesystem benchmark suite. This benchmark consists of a mixed read/write ratio, e.g. ```mixX10``` represents a write ratio of 10%. To run the ```mixX0 mixX10 mixX100``` benchmarks, build and run the server and client. Note: the client is currently hardcoded to expect the server to be running on port 8080.
 
-To run a local version of the client (connecting to a server on localhost):
+To run a local version of the benchmarks (client and server running locally):
 ```
-cargo run -- --mode server --port 8080 
+cargo run -- --mode loc_server --port 8080 
 cargo run -- --mode loc_client
 ```
 
