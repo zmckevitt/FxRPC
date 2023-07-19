@@ -1,4 +1,4 @@
-# Fxmark gRPC (WiP)
+# Fxmark gRPC
 
 Distributed fxmark benchmark using gRPC. Project uses gRPC to pass basic file related syscalls from a client to a file server that executes the relevent syscalls and returns the result to the client. Currently, this program supports the following syscalls and file system operations:
 
@@ -32,9 +32,11 @@ cargo build
 ## Running mixXX Benchmarks
 
 This project makes use of the ```mixXX``` benchmarks from the Fxmark filesystem benchmark suite. This benchmark consists of a mixed read/write ratio, e.g. ```mixX10``` represents a write ratio of 10%. To run the ```mixX0 mixX10 mixX100``` benchmarks, build and run the server and client. Note: the client is currently hardcoded to expect the server to be running on port 8080.
+
+To run a local version of the client (connecting to a server on localhost):
 ```
 cargo run -- --mode server --port 8080 
-cargo run -- --mode client
+cargo run -- --mode loc_client
 ```
 
 ## Testing
