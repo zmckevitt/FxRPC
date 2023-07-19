@@ -183,9 +183,18 @@ def qemu_run():
     print("Invoking QEMU with command: ", cmd)
 
     child = pexpect.spawn(cmd)
+
     # give guest time to boot
     child.expect("root@jammy:~# ", timeout=BOOT_TIMEOUT)
-    child.sendline("ls -l")
+
+    # bring up ip address
+    child.sendline("ip addr add 172.31.0.1/24 broadcast 172.31.0.255 dev ens3")
+    child.expect("root@jammy:~# ")
+    child.sendline("ip link set ens3 up")
+    child.expect("root@jammy:~# ")
+
+    # ensure ip address properly configured
+    child.sendline("ifconfig")
     child.expect("root@jammy:~# ")
     output = child.before
     print("{}".format(output))

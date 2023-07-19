@@ -113,6 +113,7 @@ where
     ptr::null_mut()
 }
 
+#[derive(Clone)]
 struct MicroBench<'a, T>
 where
     T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -227,7 +228,7 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
     fn start<
         T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
     >(
-        microbench: Arc<MicroBench<'static, T>>,
+        microbench: MicroBench<'static, T>,
         open_files: usize,
         write_ratio: usize,
     ) {
@@ -257,11 +258,9 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
                 // Set up barrier
                 POOR_MANS_BARRIER.store(clen, Ordering::SeqCst);
 
-
-
                 for core_id in cores.clone() {
 
-                	let mb = microbench.clone();
+                	let mb = Arc::new(microbench.clone());
 	                mb.bench.init(cores.clone(), open_files, &mut client);
 
                     let mut client1 = client.clone();
@@ -288,8 +287,8 @@ pub fn bench(open_files: usize, benchmark: String, write_ratio: usize) {
 
     if benchmark == "mix" {
         let mb = MicroBench::<MIX>::new("mix", write_ratio, open_files);
-        let microbench = Arc::new(mb);
+        // let microbench = Arc::new(mb);
         // microbench.bench.init(cores.clone(), open_files);
-        start::<MIX>(microbench, open_files, write_ratio);
+        start::<MIX>(mb, open_files, write_ratio);
     }
 }
