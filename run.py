@@ -24,6 +24,11 @@ from plumbum.commands import ProcessExecutionError
 
 from plumbum.cmd import whoami, python3, cat, getent, whoami
 
+BOOT_TIMEOUT = 60
+EXP_TIMEOUT = 10000000
+IMG_FILE = "focal-server-cloudimg-amd64.img"
+CSV_FILE = "fxmark_grpc_benchmark.csv" 
+
 def get_network_config(workers):
     """
     Returns a list of network configurations for the workers.
@@ -35,7 +40,6 @@ def get_network_config(workers):
             'mac': '56:b4:44:e9:62:d{:x}'.format(i),
         }
     return config
-
 
 MAX_WORKERS = 16
 NETWORK_CONFIG = get_network_config(MAX_WORKERS)
@@ -96,13 +100,13 @@ def configure_network(args):
     sudo[ip[['link', 'set', 'br0', 'up']]](retcode=(0, 1))
 
 
-BOOT_TIMEOUT = 60
-EXP_TIMEOUT = 10000000
-IMG_FILE = "focal-server-cloudimg-amd64.img"
-CSV_FILE = "fxmark_grpc_benchmark.csv" 
 
 def start_server():
-    cmd = "sudo qemu-system-x86_64 /users/zackm/focal-server-cloudimg-amd64.img -enable-kvm -nographic -netdev tap,id=nd0,script=no,ifname=tap0 -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d0 -m 1024"
+    cmd = "sudo qemu-system-x86_64 /users/zackm/disk.img" \
+        + " -enable-kvm -nographic" \
+        + " -netdev tap,id=nd0,script=no,ifname=tap0" \
+        + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d0" \
+        + " -m 1024 -smp 1"
 
     print("Invoking QEMU server with command: ", cmd)
 
@@ -121,8 +125,12 @@ def start_server():
     child.expect("Starting server on port 8080")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
-def start_clients(cid, args):
-    cmd = "sudo qemu-system-x86_64 /users/zackm/focal-server-cloudimg-amd64-2.img -enable-kvm -nographic -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) + " -m 1024"
+def start_client(cid, args):
+    cmd = "sudo qemu-system-x86_64 /users/zackm/disk" + str(cid) + ".img" \
+        + " -enable-kvm -nographic" \
+        + " -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) \
+        + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) \
+        + " -m 1024 -smp " + str(args.cores)
 
     print("Invoking QEMU client with command: ", cmd)
 
@@ -154,13 +162,42 @@ def start_clients(cid, args):
     f.close()
 
 def qemu_run(args):
-    pid = os.fork()
-    if pid == 0:
+    s_pid = os.fork()
+    if s_pid == 0:
         start_server()
     else:
+        print("Spawning server with pid: " + str(s_pid))
         sleep(5)
-        start_clients(1, args)
-        os.kill(pid, signal.SIGTERM)
+        children = []
+        for i in range(0, args.clients):
+            c_pid = os.fork()
+            if(c_pid == 0):
+                start_client(i+1, args)
+                sys.exit()
+            else:
+                print("Spawning child with pid: " + str(c_pid))
+                children.append(c_pid)
+
+        # wait for clients to finish
+        n = len(children)
+        while(n > 0):
+            pid = os.wait()
+            print("Child with pid " + str(pid) + " has finished.")
+            n -= 1
+
+        # terminate the server
+        os.kill(s_pid, signal.SIGTERM)
+
+def setup(args):
+    # create image for server
+    cmd = "qemu-img create -f qcow2 -o backing_file=" + IMG_FILE + " disk.img"
+    os.system(cmd)
+    for i in range(0, args.clients):
+        cmd = "qemu-img create -f qcow2 -o backing_file=" + IMG_FILE + " disk" + str(i + 1) + ".img"
+        os.system(cmd)
+
+def cleanup():
+    os.system("rm disk*")
 
 #
 # Main routine of run.py
@@ -201,9 +238,12 @@ if __name__ == '__main__':
     try:
         os.remove(CSV_FILE)
     except:
-        pass 
+        pass
+ 
     f = open(CSV_FILE, "a")
     f.write("thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations")
     f.close()
 
+    setup(args)
     qemu_run(args)
+    cleanup()
