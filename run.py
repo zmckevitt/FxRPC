@@ -99,11 +99,12 @@ def configure_network(args):
 BOOT_TIMEOUT = 60
 EXP_TIMEOUT = 10000000
 IMG_FILE = "focal-server-cloudimg-amd64.img"
+CSV_FILE = "fxmark_grpc_benchmark.csv" 
 
 def start_server():
     cmd = "sudo qemu-system-x86_64 /users/zackm/focal-server-cloudimg-amd64.img -enable-kvm -nographic -netdev tap,id=nd0,script=no,ifname=tap0 -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d0 -m 1024"
 
-    print("Invoking QEMU with command: ", cmd)
+    print("Invoking QEMU server with command: ", cmd)
 
     child = pexpect.spawn(cmd)
 
@@ -123,7 +124,7 @@ def start_server():
 def start_clients(cid, args):
     cmd = "sudo qemu-system-x86_64 /users/zackm/focal-server-cloudimg-amd64-2.img -enable-kvm -nographic -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) + " -m 1024"
 
-    print("Invoking QEMU with command: ", cmd)
+    print("Invoking QEMU client with command: ", cmd)
 
     child = pexpect.spawn(cmd)
 
@@ -144,9 +145,13 @@ def start_clients(cid, args):
         openfs += f + " "
  
     child.sendline("./fxmark_grpc --mode emu_client --wratio " + wratios + "--openf " + openfs)
+    child.expect_exact("thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
+
     output = child.before
-    print(output.decode())
+    f = open(CSV_FILE, "a")
+    f.write(output.decode().replace('\r', ''))
+    f.close()
 
 def qemu_run(args):
     pid = os.fork()
@@ -193,4 +198,12 @@ if __name__ == '__main__':
             sys.exit(errno.EINVAL)
         else:
             raise e
+    try:
+        os.remove(CSV_FILE)
+    except:
+        pass 
+    f = open(CSV_FILE, "a")
+    f.write("thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations")
+    f.close()
+
     qemu_run(args)
