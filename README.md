@@ -31,12 +31,17 @@ cargo build
 
 ## Running mixXX Benchmarks
 
-This project makes use of the ```mixXX``` benchmarks from the Fxmark filesystem benchmark suite. This benchmark consists of a mixed read/write ratio, e.g. ```mixX10``` represents a write ratio of 10%. To run the ```mixX0 mixX10 mixX100``` benchmarks, build and run the server and client. Note: the client is currently hardcoded to expect the server to be running on port 8080.
+This project makes use of the ```mixXX``` benchmarks from the Fxmark filesystem benchmark suite. Note: the client is currently hardcoded to expect the server to be running on port 8080.
 
-To run a local version of the benchmarks (client and server running locally):
+To run a local version of the benchmarks (client and server running locally) with write ratios of 0 and 10 and 1 open file:
 ```
 cargo run -- --mode loc_server --port 8080 
-cargo run -- --mode loc_client
+cargo run -- --mode loc_client --wratio 0 10 --openf 1
+```
+
+To run the benchmarks with a qemu emulation layer (requires preconfigured disk image):
+```
+python3 run.py --clients <nclients> --cores <cores per client> --wratio <write ratios> --openf <open files>
 ```
 
 ## Testing
