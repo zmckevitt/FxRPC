@@ -47,6 +47,9 @@ NETWORK_INFRA_IP = '172.31.0.20/24'
 parser = argparse.ArgumentParser()
 
 parser.add_argument("--clients", type=int, required=True, default=1, help="Setup n clients")
+parser.add_argument("--cores", type=int, required=True, default=1, help="Cores per client")
+parser.add_argument("--wratio", nargs="+", required=True, help="Specify write ratio for mix benchmarks")
+parser.add_argument("--openf", nargs="+", required=True, help="Specify number of open files for mix benchmarks")
 
 subparser = parser.add_subparsers(help='Advanced network configuration')
 
@@ -117,7 +120,7 @@ def start_server():
     child.expect("Starting server on port 8080")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
-def start_clients(cid):
+def start_clients(cid, args):
     cmd = "sudo qemu-system-x86_64 /users/zackm/focal-server-cloudimg-amd64-2.img -enable-kvm -nographic -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) + " -m 1024"
 
     print("Invoking QEMU with command: ", cmd)
@@ -132,19 +135,26 @@ def start_clients(cid):
     child.expect("root@jammy:~# ")
     child.sendline("ip link set ens3 up")
     child.expect("root@jammy:~# ")
-   
-    child.sendline("./fxmark_grpc --mode emu_client")
+  
+    wratios = ""
+    for ratio in args.wratio:
+        wratios += ratio + " "
+    openfs = ""
+    for f in args.openf:
+        openfs += f + " "
+ 
+    child.sendline("./fxmark_grpc --mode emu_client --wratio " + wratios + "--openf " + openfs)
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
     output = child.before
     print(output.decode())
 
-def qemu_run():
+def qemu_run(args):
     pid = os.fork()
     if pid == 0:
         start_server()
     else:
         sleep(5)
-        start_clients(1)
+        start_clients(1, args)
         os.kill(pid, signal.SIGTERM)
 
 #
@@ -183,5 +193,4 @@ if __name__ == '__main__':
             sys.exit(errno.EINVAL)
         else:
             raise e
-
-    qemu_run()
+    qemu_run(args)
