@@ -102,7 +102,7 @@ def configure_network(args):
 
 
 def start_server():
-    cmd = "sudo qemu-system-x86_64 /users/zackm/disk.img" \
+    cmd = "sudo qemu-system-x86_64 disk.img" \
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap0" \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d0" \
@@ -126,7 +126,7 @@ def start_server():
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
 def start_client(cid, args):
-    cmd = "sudo qemu-system-x86_64 /users/zackm/disk" + str(cid) + ".img" \
+    cmd = "sudo qemu-system-x86_64 disk" + str(cid) + ".img" \
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) \
