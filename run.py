@@ -192,10 +192,10 @@ def qemu_run(args):
 
 def setup(args):
     # create image for server
-    cmd = "qemu-img create -f qcow2 -o backing_file=" + args.image + " /tmp/disk.img"
+    cmd = "qemu-img create -f qcow2 -b " + args.image + " -F qcow2 /tmp/disk.img"
     os.system(cmd)
     for i in range(0, args.clients):
-        cmd = "qemu-img create -f qcow2 -o backing_file=" + args.image + " /tmp/disk" + str(i + 1) + ".img"
+        cmd = "qemu-img create -f qcow2 -b " + args.image + " -F qcow2 /tmp/disk" + str(i + 1) + ".img"
         os.system(cmd)
 
 def cleanup():
