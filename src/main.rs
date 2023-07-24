@@ -50,6 +50,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .multiple(true)
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("duration")
+                .long("duration")
+                .required(false)
+                .help("Duration for benchmark")
+                .takes_value(true),
+        )
         .get_matches_from(args);
 
     let mode = value_t!(matches, "mode", String).unwrap();
@@ -67,11 +74,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             start_rpc_server(bind_addr, port)
         }
         "loc_client" | "emu_client" => {
-
             let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();
-            let wratios: Vec<usize> = wratios.into_iter().map(|x| x.parse::<usize>().unwrap()).collect();
+            let wratios: Vec<usize> = wratios
+                .into_iter()
+                .map(|x| x.parse::<usize>().unwrap())
+                .collect();
             let openfs: Vec<&str> = matches.values_of("openf").unwrap().collect();
-            let openfs: Vec<usize> = openfs.into_iter().map(|x| x.parse::<usize>().unwrap()).collect();
+            let openfs: Vec<usize> = openfs
+                .into_iter()
+                .map(|x| x.parse::<usize>().unwrap())
+                .collect();
 
             let host_addr = if mode == "loc_client" {
                 "http://[::1]:8080"
@@ -105,12 +117,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     print!("{}", row);
                 }
             }
-            
-             for of in openfs {
-                 for wr in &wratios {
-                     bench(of, bench_name.clone(), *wr, client.clone(), log_mode.clone());
-                 }
-             }
+
+            let duration = value_t!(matches, "duration", u64).unwrap_or_else(|e| e.exit());
+            for of in openfs {
+                for wr in &wratios {
+                    bench(
+                        of,
+                        bench_name.clone(),
+                        *wr,
+                        client.clone(),
+                        log_mode.clone(),
+                        duration,
+                    );
+                }
+            }
         }
         _ => panic!("Unknown mode!"),
     }

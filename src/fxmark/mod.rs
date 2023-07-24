@@ -99,6 +99,7 @@ unsafe extern "C" fn fxmark_bencher_trampoline<T>(
     core_id: usize,
     client: &mut Arc<Mutex<BlockingClient>>,
     log_mode: Arc<LogMode>,
+    duration: u64,
 ) -> *mut u8
 where
     T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -112,6 +113,7 @@ where
         bench.open_files,
         client,
         log_mode,
+        duration,
     );
     ptr::null_mut()
 }
@@ -186,8 +188,10 @@ where
         open_files: usize,
         client: &mut Arc<Mutex<BlockingClient>>,
         log_mode: Arc<LogMode>,
+        duration: u64,
     ) {
-        let bench_duration_secs = if cfg!(feature = "smoke") { 1 } else { 10 };
+        // let bench_duration_secs = if cfg!(feature = "smoke") { 1 } else { 10 };
+        let bench_duration_secs = duration;
         let iops = self.bench.run(
             &POOR_MANS_BARRIER,
             bench_duration_secs,
@@ -238,6 +242,7 @@ pub fn bench(
     write_ratio: usize,
     client: Arc<Mutex<BlockingClient>>,
     log_mode: Arc<LogMode>,
+    duration: u64,
 ) {
     fn start<
         T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -247,6 +252,7 @@ pub fn bench(
         write_ratio: usize,
         mut client: Arc<Mutex<BlockingClient>>,
         log_mode: Arc<LogMode>,
+        duration: u64,
     ) {
         let thread_mappings = microbench.thread_mappings.clone();
         let threads = microbench.threads.clone();
@@ -278,6 +284,7 @@ pub fn bench(
 
                     let mut client1 = client.clone();
                     let mode = log_mode.clone();
+                    let bench_duration = duration.clone();
                     thandles.push(thread::spawn(move || {
                         utils::pin_thread(core_id);
                         let arg = Arc::into_raw(mb) as *const _ as *mut u8;
@@ -288,6 +295,7 @@ pub fn bench(
                                 core_id as usize,
                                 &mut client1,
                                 mode,
+                                bench_duration,
                             );
                         }
                     }));
@@ -302,6 +310,6 @@ pub fn bench(
 
     if benchmark == "mix" {
         let mb = MicroBench::<MIX>::new("mix", write_ratio, open_files);
-        start::<MIX>(mb, open_files, write_ratio, client, log_mode);
+        start::<MIX>(mb, open_files, write_ratio, client, log_mode, duration);
     }
 }
