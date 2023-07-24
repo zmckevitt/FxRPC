@@ -41,8 +41,9 @@ cargo run -- --mode loc_client --wratio 0 10 --openf 1
 
 To run the benchmarks with a qemu emulation layer (requires preconfigured disk image - see CONFIGURATION.md):
 ```
-python3 run.py --clients <nclients> --cores <cores per client> --wratio <write ratios> --openf <open files>
+python3 run.py --image <path to disk image> --clients <nclients> --cores <cores per client> --wratio <write ratios> --openf <open files>
 ```
+Note: the program writes and removes ephemeral disk images to/from ```/tmp```.
 
 ## Testing
 
