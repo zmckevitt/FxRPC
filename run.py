@@ -26,7 +26,6 @@ from plumbum.cmd import whoami, python3, cat, getent, whoami
 
 BOOT_TIMEOUT = 60
 EXP_TIMEOUT = 10000000
-IMG_FILE = "focal-server-cloudimg-amd64.img"
 CSV_FILE = "fxmark_grpc_benchmark.csv" 
 
 def get_network_config(workers):
@@ -50,6 +49,7 @@ NETWORK_INFRA_IP = '172.31.0.20/24'
 #
 parser = argparse.ArgumentParser()
 
+parser.add_argument("--image", required=True, help="Specify disk image to use")
 parser.add_argument("--clients", type=int, required=True, default=1, help="Setup n clients")
 parser.add_argument("--cores", type=int, required=True, default=1, help="Cores per client")
 parser.add_argument("--wratio", nargs="+", required=True, help="Specify write ratio for mix benchmarks")
@@ -102,7 +102,7 @@ def configure_network(args):
 
 
 def start_server():
-    cmd = "sudo qemu-system-x86_64 disk.img" \
+    cmd = "sudo qemu-system-x86_64 /tmp/disk.img" \
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap0" \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d0" \
@@ -126,7 +126,7 @@ def start_server():
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
 def start_client(cid, args):
-    cmd = "sudo qemu-system-x86_64 disk" + str(cid) + ".img" \
+    cmd = "sudo qemu-system-x86_64 /tmp/disk" + str(cid) + ".img" \
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) \
@@ -190,14 +190,14 @@ def qemu_run(args):
 
 def setup(args):
     # create image for server
-    cmd = "qemu-img create -f qcow2 -o backing_file=" + IMG_FILE + " disk.img"
+    cmd = "qemu-img create -f qcow2 -o backing_file=" + args.image + " /tmp/disk.img"
     os.system(cmd)
     for i in range(0, args.clients):
-        cmd = "qemu-img create -f qcow2 -o backing_file=" + IMG_FILE + " disk" + str(i + 1) + ".img"
+        cmd = "qemu-img create -f qcow2 -o backing_file=" + args.image + " /tmp/disk" + str(i + 1) + ".img"
         os.system(cmd)
 
 def cleanup():
-    os.system("rm disk*")
+    os.system("rm /tmp/disk*.img")
 
 #
 # Main routine of run.py
