@@ -100,7 +100,3 @@ rm /etc/netplan/50-cloud-init.yaml
 ```
 
 Note: without this file, you can no longer use userspace networking, so ensure that all network dependent steps are complete prior to this step!
-
-## Running the benchmark in emulation mode
-
-After successfully creating the disk image, modify the ```IMG_FILE``` constant in ```run.py```. You are now set to run the benchmark!
