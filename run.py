@@ -108,7 +108,8 @@ def start_server(args):
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap0" \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d0" \
-        + " -m 1024 -smp " + str(args.scores)
+        + " -m 1024 -smp " + str(args.scores) \
+        + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase"
 
     print("Invoking QEMU server with command: ", cmd)
 
@@ -132,7 +133,8 @@ def start_client(cid, args):
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) \
-        + " -m 1024 -smp " + str(args.cores)
+        + " -m 1024 -smp " + str(args.cores) \
+        + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase"
 
     print("Invoking QEMU client with command: ", cmd)
 

@@ -109,7 +109,7 @@ impl Bench for MIX {
         let mut random_num: u16 = 0;
 
         while iterations <= duration {
-            let start = rawtime::Instant::now();
+            let start = std::time::Instant::now();
             while start.elapsed().as_secs() < 1 {
                 for _i in 0..64 {
                     unsafe { rdrand16(&mut random_num) };
@@ -153,7 +153,7 @@ impl Bench for MIX {
         }
 
         if core == *self.min_core.borrow() {
-            let start = rawtime::Instant::now();
+            let start = std::time::Instant::now();
             while start.elapsed().as_secs() < 1 {}
             for i in 0..*self.open_files.borrow() {
                 let fd = self.fds.borrow()[i];
