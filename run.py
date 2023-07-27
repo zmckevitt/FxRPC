@@ -52,7 +52,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument("--image", required=True, help="Specify disk image to use")
 parser.add_argument("--scores", type=int, required=True, default=1, help="Cores for server")
 parser.add_argument("--clients", type=int, required=True, default=1, help="Setup n clients")
-parser.add_argument("--cores", type=int, required=True, default=1, help="Cores per client")
+parser.add_argument("--ccores", type=int, required=True, default=1, help="Cores per client")
 parser.add_argument("--wratio", nargs="+", required=True, help="Specify write ratio for mix benchmarks")
 parser.add_argument("--openf", nargs="+", required=True, help="Specify number of open files for mix benchmarks")
 parser.add_argument("--duration", type=int, required=True, default=10, help="Experiment duration")
@@ -133,7 +133,7 @@ def start_client(cid, args):
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) \
-        + " -m 1024 -smp " + str(args.cores) \
+        + " -m 1024 -smp " + str(args.ccores) \
         + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase"
 
     print("Invoking QEMU client with command: ", cmd)
@@ -156,8 +156,8 @@ def start_client(cid, args):
     for f in args.openf:
         openfs += f + " "
  
-    child.sendline("./fxmark_grpc --mode emu_client --wratio " + wratios + "--openf " + openfs + "--duration " + str(args.duration))
-    child.expect_exact("thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations")
+    child.sendline("./fxmark_grpc --mode emu_client --wratio " + wratios + "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + " --nclients " + str(args.clients) + " --ccores " + str(args.ccores))
+    child.expect_exact("thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
     output = child.before
@@ -245,7 +245,7 @@ if __name__ == '__main__':
         pass
  
     f = open(CSV_FILE, "a")
-    f.write("thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations")
+    f.write("thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients")
     f.close()
 
     setup(args)

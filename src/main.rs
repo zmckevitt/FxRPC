@@ -73,6 +73,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .help("Number of clients")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("ccores")
+                .long("ccores")
+                .required(false)
+                .help("Cores per client")
+                .takes_value(true),
+        )
         .get_matches_from(args);
 
     let mode = value_t!(matches, "mode", String).unwrap();
@@ -116,12 +123,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 1
             };
 
-
-            // let ccores = value_t!(matches, "ccores", usize).unwrap_or_else(|e| e.exit())
-            let ccores = { 
+            let ccores = if mode == "loc_client" { 
                 let topology = MachineTopology::new();
                 let max_cores = topology.cores() / 2;
                 max_cores
+            } else {
+                value_t!(matches, "ccores", usize).unwrap_or_else(|e| e.exit())
             };
 
             let host_addr = if mode == "loc_client" {
