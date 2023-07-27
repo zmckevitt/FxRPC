@@ -22,15 +22,14 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 
 use lazy_static::lazy_static;
 
-mod utils;
+pub mod utils;
 use utils::topology::ThreadMapping;
 use utils::topology::*;
 
 mod mix;
 use crate::fxmark::mix::MIX;
 
-use fxmark_grpc::BlockingClient;
-use fxmark_grpc::LogMode;
+use fxmark_grpc::{BlockingClient, LogMode, ClientParams};
 
 const PAGE_SIZE: usize = 1008;
 
@@ -97,9 +96,9 @@ unsafe extern "C" fn fxmark_bencher_trampoline<T>(
     arg: *mut u8,
     cores: usize,
     core_id: usize,
-    client: &mut Arc<Mutex<BlockingClient>>,
-    log_mode: Arc<LogMode>,
     duration: u64,
+    client: &mut Arc<Mutex<BlockingClient>>,
+    client_params: ClientParams
 ) -> *mut u8
 where
     T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -111,9 +110,9 @@ where
         bench.benchmark,
         bench.write_ratio,
         bench.open_files,
-        client,
-        log_mode,
         duration,
+        client,
+        client_params,
     );
     ptr::null_mut()
 }
@@ -139,32 +138,15 @@ where
         benchmark: &'static str,
         write_ratio: usize,
         open_files: usize,
+        client_params: &ClientParams,
     ) -> MicroBench<'a, T> {
-        let mapping = ThreadMapping::Sequential;
-        let topology = MachineTopology::new();
-        let max_cores = topology.cores() / 2;
 
-        let thread_increments = if max_cores > 90 {
-            8
-        } else if max_cores > 24 {
-            4
-        } else if max_cores > 16 {
-            4
-        } else {
-            2
-        };
+        let mapping = ThreadMapping::Sequential;
+        let max_cores = (*client_params).ccores;
 
         let mut threads = Vec::new();
 
-        for t in (0..(max_cores + 1)).step_by(thread_increments) {
-            if t == 0 {
-                threads.push(t + 1);
-            } else {
-                threads.push(t);
-            }
-        }
-
-        threads.sort();
+        threads.push(max_cores);
 
         let mut thread_mapping = Vec::new();
         thread_mapping.push(mapping);
@@ -186,9 +168,9 @@ where
         benchmark: &str,
         write_ratio: usize,
         open_files: usize,
-        client: &mut Arc<Mutex<BlockingClient>>,
-        log_mode: Arc<LogMode>,
         duration: u64,
+        client: &mut Arc<Mutex<BlockingClient>>,
+        client_params: ClientParams,
     ) {
         // let bench_duration_secs = if cfg!(feature = "smoke") { 1 } else { 10 };
         let bench_duration_secs = duration;
@@ -207,18 +189,21 @@ where
             .expect("Cant open output file");
         for iteration in 1..(bench_duration_secs + 1) {
             let row = format!(
-                "{},{:?},{},{},{},{},{},{}\n",
-                core_id,
+                "{},{:?},{},{},{},{},{},{},{},{},{}\n",
+                core_id + (client_params.ccores * client_params.cid),
                 benchmark,
-                cores,
+                cores * client_params.nclients,
                 write_ratio,
                 open_files,
                 bench_duration_secs,
                 iteration,
-                iops[iteration as usize]
+                iops[iteration as usize],
+                client_params.cid,
+                client_params.ccores,
+                client_params.nclients,
             );
 
-            match *log_mode {
+            match client_params.log_mode {
                 LogMode::CSV => {
                     let r = csv_file.write(row.as_bytes());
                     assert!(r.is_ok());
@@ -237,12 +222,12 @@ pub fn max_open_files() -> usize {
 }
 
 pub fn bench(
-    open_files: usize,
     benchmark: String,
+    open_files: usize,
     write_ratio: usize,
-    client: Arc<Mutex<BlockingClient>>,
-    log_mode: Arc<LogMode>,
     duration: u64,
+    client_params: &ClientParams,
+    client: Arc<Mutex<BlockingClient>>,
 ) {
     fn start<
         T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -250,9 +235,9 @@ pub fn bench(
         microbench: MicroBench<'static, T>,
         open_files: usize,
         write_ratio: usize,
-        mut client: Arc<Mutex<BlockingClient>>,
-        log_mode: Arc<LogMode>,
         duration: u64,
+        mut client: Arc<Mutex<BlockingClient>>,
+        client_params: &ClientParams,
     ) {
         let thread_mappings = microbench.thread_mappings.clone();
         let threads = microbench.threads.clone();
@@ -266,7 +251,7 @@ pub fn bench(
                 let cores: Vec<u64> = cpus.iter().map(|c| c.cpu).collect();
                 let clen = cores.len();
 
-                if matches!(*log_mode, LogMode::CSV) {
+                if matches!(client_params.log_mode, LogMode::CSV) {
                     println!(
                         "Run Benchmark={} TM={} Cores={}; Write-Ratio={} Open-Files={}",
                         microbench.benchmark, *tm, ts, write_ratio, open_files
@@ -283,8 +268,8 @@ pub fn bench(
                     mb.bench.init(cores.clone(), open_files, &mut client);
 
                     let mut client1 = client.clone();
-                    let mode = log_mode.clone();
                     let bench_duration = duration.clone();
+                    let params = (*client_params).clone();
                     thandles.push(thread::spawn(move || {
                         utils::pin_thread(core_id);
                         let arg = Arc::into_raw(mb) as *const _ as *mut u8;
@@ -293,9 +278,9 @@ pub fn bench(
                                 arg,
                                 clen,
                                 core_id as usize,
-                                &mut client1,
-                                mode,
                                 bench_duration,
+                                &mut client1,
+                                params,
                             );
                         }
                     }));
@@ -309,7 +294,7 @@ pub fn bench(
     }
 
     if benchmark == "mix" {
-        let mb = MicroBench::<MIX>::new("mix", write_ratio, open_files);
-        start::<MIX>(mb, open_files, write_ratio, client, log_mode, duration);
+        let mb = MicroBench::<MIX>::new("mix", write_ratio, open_files, client_params);
+        start::<MIX>(mb, open_files, write_ratio, duration, client, client_params);
     }
 }

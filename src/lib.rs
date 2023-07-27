@@ -22,6 +22,8 @@ pub const PATH: &str = "/dev/shm/";
 
 // pub const PAGE_SIZE: usize = 1024;
 
+#[derive(Clone)]
+#[derive(Copy)]
 pub enum LogMode {
     CSV,
     STDOUT,
@@ -32,6 +34,14 @@ pub mod syscalls {
 }
 
 //////////////////////////////////////// CLIENT ////////////////////////////////////////
+
+#[derive(Clone)]
+pub struct ClientParams {
+    pub cid: usize,
+    pub nclients: usize,
+    pub ccores: usize,
+    pub log_mode: LogMode,
+}
 
 pub struct BlockingClient {
     client: SyscallClient<tonic::transport::Channel>,

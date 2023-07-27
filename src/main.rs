@@ -11,6 +11,8 @@ use std::sync::{Arc, Mutex};
 mod fxmark;
 use crate::fxmark::{bench, OUTPUT_FILE};
 
+use crate::fxmark::utils::topology::MachineTopology;
+
 use fxmark_grpc::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -57,6 +59,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .help("Duration for benchmark")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("cid")
+                .long("cid")
+                .required(false)
+                .help("Client ID")
+                .takes_value(true),
+        )
+        .arg(
+            Arg::with_name("nclients")
+                .long("nclients")
+                .required(false)
+                .help("Number of clients")
+                .takes_value(true),
+        )
         .get_matches_from(args);
 
     let mode = value_t!(matches, "mode", String).unwrap();
@@ -74,6 +90,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             start_rpc_server(bind_addr, port)
         }
         "loc_client" | "emu_client" => {
+
             let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();
             let wratios: Vec<usize> = wratios
                 .into_iter()
@@ -85,31 +102,56 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .map(|x| x.parse::<usize>().unwrap())
                 .collect();
 
+            let duration = value_t!(matches, "duration", u64).unwrap_or_else(|e| e.exit());
+
+            let cid = if mode == "emu_client" {
+                value_t!(matches, "cid", usize).unwrap_or_else(|e| e.exit())
+            } else {
+                0
+            };
+
+            let nclients = if mode == "emu_client" {
+                value_t!(matches, "nclients", usize).unwrap_or_else(|e| e.exit())
+            } else {
+                1
+            };
+
+
+            // let ccores = value_t!(matches, "ccores", usize).unwrap_or_else(|e| e.exit())
+            let ccores = { 
+                let topology = MachineTopology::new();
+                let max_cores = topology.cores() / 2;
+                max_cores
+            };
+
             let host_addr = if mode == "loc_client" {
                 "http://[::1]:8080"
             } else {
                 "http://172.31.0.1:8080"
             };
 
-            let client = Arc::new(Mutex::new(BlockingClient::connect(host_addr).unwrap()));
-
-            let log_mode = Arc::new(if mode == "loc_client" {
+            let log_mode = if mode == "loc_client" {
                 LogMode::CSV
             } else {
                 LogMode::STDOUT
-            });
+            };
 
-            let _ = remove_file(OUTPUT_FILE);
+            let client_params = ClientParams {
+                cid: cid,
+                nclients: nclients,
+                ccores: ccores,
+                log_mode: log_mode,
+            };
 
-            let mut csv_file = OpenOptions::new()
-                .append(true)
-                .create(true)
-                .open(OUTPUT_FILE)
-                .expect("Cant open output file");
-            let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations\n";
-
-            match *log_mode {
+            let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients\n";
+            match log_mode {
                 LogMode::CSV => {
+                    let _ = remove_file(OUTPUT_FILE);
+                    let mut csv_file = OpenOptions::new()
+                        .append(true)
+                        .create(true)
+                        .open(OUTPUT_FILE)
+                        .expect("Cant open output file");
                     let r = csv_file.write(row.as_bytes());
                     assert!(r.is_ok());
                 }
@@ -118,16 +160,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            let duration = value_t!(matches, "duration", u64).unwrap_or_else(|e| e.exit());
+            let client = Arc::new(Mutex::new(BlockingClient::connect(host_addr).unwrap()));
             for of in openfs {
                 for wr in &wratios {
                     bench(
-                        of,
                         bench_name.clone(),
+                        of,
                         *wr,
-                        client.clone(),
-                        log_mode.clone(),
                         duration,
+                        &client_params,
+                        client.clone(),
                     );
                 }
             }
