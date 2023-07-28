@@ -56,6 +56,7 @@ parser.add_argument("--ccores", type=int, required=True, default=1, help="Cores 
 parser.add_argument("--wratio", nargs="+", required=True, help="Specify write ratio for mix benchmarks")
 parser.add_argument("--openf", nargs="+", required=True, help="Specify number of open files for mix benchmarks")
 parser.add_argument("--duration", type=int, required=True, default=10, help="Experiment duration")
+parser.add_argument("--csv", type=str, required=False, default="fxmark_grpc_benchmarks.csv", help="CSV file")
 
 subparser = parser.add_subparsers(help='Advanced network configuration')
 
@@ -161,7 +162,7 @@ def start_client(cid, args):
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
     output = child.before
-    f = open(CSV_FILE, "a")
+    f = open(args.csv, "a")
     f.write(output.decode().replace('\r', ''))
     f.close()
 
@@ -239,15 +240,7 @@ if __name__ == '__main__':
             sys.exit(errno.EINVAL)
         else:
             raise e
-    try:
-        os.remove(CSV_FILE)
-    except:
-        pass
- 
-    f = open(CSV_FILE, "a")
-    f.write("thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients")
-    f.close()
-
+    
     setup(args)
     qemu_run(args)
     cleanup()
