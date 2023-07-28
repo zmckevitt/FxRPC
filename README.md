@@ -29,23 +29,21 @@ rustup default nightly
 cargo build
 ```
 
-## Running mixXX Benchmarks
+## Fxmark gRPC Program
+
+The Fxmark gRPC program is located in the ```prog/``` directory.
+
+### Running mixXX Benchmarks
 
 This project makes use of the ```mixXX``` benchmarks from the Fxmark filesystem benchmark suite. Note: the client is currently hardcoded to expect the server to be running on port 8080.
 
-To run a local version of the benchmarks (client and server running locally) with write ratios of 0 and 10 and 1 open file:
+To run a local version of the benchmarks (client and server running locally) with write ratios of 0 and 10, 1 open file, and 10s duration:
 ```
 cargo run -- --mode loc_server --port 8080 
-cargo run -- --mode loc_client --wratio 0 10 --openf 1
+cargo run -- --mode loc_client --wratio 0 10 --openf 1 --duration 10
 ```
 
-To run the benchmarks with a qemu emulation layer (requires preconfigured disk image - see CONFIGURATION.md):
-```
-python3 run.py --image <path to disk image> --scores <cores for server> --clients <nclients> --ccores <cores per client> --wratio <write ratios> --openf <open files> --duration <experiment duration>
-```
-Note: the program writes and removes ephemeral disk images to/from ```/tmp```.
-
-## Testing
+### Testing
 
 To run unit tests for various syscalls and directory operations, first initialize the file system:
 ```
@@ -59,3 +57,13 @@ Run the tests:
 ```
 cargo test
 ```
+
+## Benchmarking Fxmark gRPC
+
+The code to automatically emulate and benchmark the Fxmark gRPC program is located in ```run/```.
+
+To run the benchmarks with a qemu emulation layer (requires preconfigured disk image - see CONFIGURATION.md):
+```
+cargo run -- --image <path to disk image> --scores <cores for server> --wratio <write ratios> --openf <open files> --duration <experiment duration> --csv <optional alternate csv output>
+```
+Note: the program writes and removes ephemeral disk images to/from ```/tmp```.
