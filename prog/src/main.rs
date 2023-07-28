@@ -97,7 +97,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             start_rpc_server(bind_addr, port)
         }
         "loc_client" | "emu_client" => {
-
             let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();
             let wratios: Vec<usize> = wratios
                 .into_iter()
@@ -123,18 +122,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 1
             };
 
-            let ccores = if mode == "loc_client" { 
+            let ccores = if mode == "loc_client" {
                 let topology = MachineTopology::new();
                 let max_cores = topology.cores() / 2;
                 max_cores
             } else {
                 value_t!(matches, "ccores", usize).unwrap_or_else(|e| e.exit())
-            };
-
-            let host_addr = if mode == "loc_client" {
-                "http://[::1]:8080"
-            } else {
-                "http://172.31.0.1:8080"
             };
 
             let log_mode = if mode == "loc_client" {
@@ -166,6 +159,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     print!("{}", row);
                 }
             }
+
+            let host_addr = if mode == "loc_client" {
+                "http://[::1]:8080"
+            } else {
+                "http://172.31.0.1:8080"
+            };
 
             let client = Arc::new(Mutex::new(BlockingClient::connect(host_addr).unwrap()));
             for of in openfs {

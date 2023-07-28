@@ -29,7 +29,7 @@ use utils::topology::*;
 mod mix;
 use crate::fxmark::mix::MIX;
 
-use fxmark_grpc::{BlockingClient, LogMode, ClientParams};
+use fxmark_grpc::{BlockingClient, ClientParams, LogMode};
 
 const PAGE_SIZE: usize = 1008;
 
@@ -98,7 +98,7 @@ unsafe extern "C" fn fxmark_bencher_trampoline<T>(
     core_id: usize,
     duration: u64,
     client: &mut Arc<Mutex<BlockingClient>>,
-    client_params: ClientParams
+    client_params: ClientParams,
 ) -> *mut u8
 where
     T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -140,7 +140,6 @@ where
         open_files: usize,
         client_params: &ClientParams,
     ) -> MicroBench<'a, T> {
-
         let mapping = ThreadMapping::Sequential;
         let max_cores = (*client_params).ccores;
 

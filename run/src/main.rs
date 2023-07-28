@@ -10,10 +10,9 @@ use std::process::Command;
 use clap::{crate_version, value_t, App, Arg};
 
 mod builder;
-use builder::{Machine};
+use builder::Machine;
 
 fn main() {
-
     let args = std::env::args();
     let matches = App::new("Fxmark gRPC Runner")
         .version(crate_version!())
@@ -111,14 +110,22 @@ fn main() {
 
         let _output = Command::new("python3")
             .arg("run.py")
-            .arg("--image").arg(image.clone())
-            .arg("--scores").arg(scores.clone())
-            .arg("--clients").arg(format!("{}", num_clients))
-            .arg("--ccores").arg(format!("{}", cores_per_client))
-            .arg("--wratio").arg(wr_joined.clone())
-            .arg("--openf").arg(of_joined.clone())
-            .arg("--duration").arg(duration.clone())
-            .arg("--csv").arg(csv.clone())
+            .arg("--image")
+            .arg(image.clone())
+            .arg("--scores")
+            .arg(scores.clone())
+            .arg("--clients")
+            .arg(format!("{}", num_clients))
+            .arg("--ccores")
+            .arg(format!("{}", cores_per_client))
+            .arg("--wratio")
+            .arg(wr_joined.clone())
+            .arg("--openf")
+            .arg(of_joined.clone())
+            .arg("--duration")
+            .arg(duration.clone())
+            .arg("--csv")
+            .arg(csv.clone())
             .output()
             .expect("failed to execute process");
 
@@ -130,6 +137,5 @@ fn main() {
         } else {
             total_cores += 4;
         }
-
-    } 
+    }
 }
