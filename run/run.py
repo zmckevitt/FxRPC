@@ -18,6 +18,7 @@ import re
 import errno
 from time import sleep
 import tempfile
+from numa import info
 
 from plumbum import colors, local, SshMachine
 from plumbum.commands import ProcessExecutionError
@@ -27,6 +28,7 @@ from plumbum.cmd import whoami, python3, cat, getent, whoami
 BOOT_TIMEOUT = 60
 EXP_TIMEOUT = 10000000
 CSV_FILE = "fxmark_grpc_benchmark.csv" 
+AFF_TIMEOUT = 120
 
 def get_network_config(workers):
     """
@@ -102,19 +104,62 @@ def configure_network(args):
         sudo[brctl[['addif', 'br0', ncfg]]]()
     sudo[ip[['link', 'set', 'br0', 'up']]](retcode=(0, 1))
 
+def numa_nodes_to_list(file):
+        nodes = []
+        good_nodes = cat[file]().split(',')
+        for node_range in good_nodes:
+            if "-" in node_range:
+                nlow, nmax = node_range.split('-')
+                for i in range(int(nlow), int(nmax)+1):
+                    nodes.append(i)
+            else:
+                nodes.append(int(node_range.strip()))
+        return nodes
 
+def query_host_numa():
+    mem_nodes = numa_nodes_to_list(
+        "/sys/devices/system/node/has_memory")
+    cpu_nodes = numa_nodes_to_list("/sys/devices/system/node/has_cpu")
 
-def start_server(args):
-    cmd = "sudo qemu-system-x86_64 /tmp/disk.img" \
+    # Now return the intersection of the two
+    return list(sorted(set(mem_nodes).intersection(set(cpu_nodes))))
+
+def start_server(args, node, affinity):
+    host_numa_nodes_list = query_host_numa()
+    num_host_numa_nodes = len(host_numa_nodes_list)
+    host_nodes = 0 if num_host_numa_nodes == 0 else host_numa_nodes_list[node % num_host_numa_nodes]
+    cmd = "/usr/bin/env qemu-system-x86_64 /tmp/disk.img" \
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap0" \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d0" \
-        + " -m 1024 -smp " + str(args.scores) \
-        + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase"
+        + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase" \
+        + " -name server,debug-threads=on" \
+        + " -object memory-backend-ram,id=nmem" + str(node) + ",merge=off,dump=on,prealloc=off,size=1024M" \
+        + ",host-nodes=" + str(host_nodes) \
+        + ",policy=bind,share=on" \
+        + " -numa node,memdev=nmem" + str(node) + ",nodeid=" + str(node) \
+        + " -numa cpu,node-id=" + str(node) + ",socket-id=" + str(node) \
+        + " -smp " + str(args.scores) + ",sockets=1,maxcpus=" + str(args.scores) + " -m 1024M"
+        # + " -m 1024 -smp " + str(args.scores) \
 
     print("Invoking QEMU server with command: ", cmd)
 
     child = pexpect.spawn(cmd)
+   
+    timeout = 0 
+    while True:
+
+        if(timeout > AFF_TIMEOUT):
+            print("Affinity timeout!")
+            sys.exit()
+
+        try:
+            sudo[python3['./qemu_affinity.py', 
+                         '-k', affinity, '--', str(child.pid)]]()
+            break
+        except:
+            sleep(2)
+            timeout += 2
 
     # give guest time to boot
     child.expect("root@jammy:~# ", timeout=BOOT_TIMEOUT)
@@ -129,17 +174,43 @@ def start_server(args):
     child.expect("Starting server on port 8080")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
-def start_client(cid, args):
-    cmd = "sudo qemu-system-x86_64 /tmp/disk" + str(cid) + ".img" \
+def start_client(cid, args, node, affinity):
+    host_numa_nodes_list = query_host_numa()
+    num_host_numa_nodes = len(host_numa_nodes_list)
+    host_nodes = 0 if num_host_numa_nodes == 0 else host_numa_nodes_list[node % num_host_numa_nodes]
+    cmd = "/usr/bin/env qemu-system-x86_64 /tmp/disk" + str(cid) + ".img" \
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) \
-        + " -m 1024 -smp " + str(args.ccores) \
-        + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase"
+        + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase" \
+        + " -name client" + str(cid) + ",debug-threads=on" \
+        + " -smp " + str(args.ccores) + ",sockets=1,maxcpus=" + str(args.ccores) + " -m 1024M"
+        # + " -object memory-backend-ram,id=nmem" + str(node) + ",merge=off,dump=on,prealloc=off,size=1024M" \
+        # + ",host-nodes=" + str(host_nodes) \
+        # + ",policy=bind,share=on" \
+        # + " -numa node,memdev=nmem" + str(node) + ",nodeid=" + str(node) \
+        # + " -numa cpu,node-id=" + str(node) + ",socket-id=" + str(node) 
+        # + " -smp " + str(args.ccores) + ",sockets=1,maxcpus=" + str(args.ccores)
+        # + " -m 1024 -smp " + str(args.ccores) \
 
     print("Invoking QEMU client with command: ", cmd)
 
     child = pexpect.spawn(cmd)
+
+    timeout = 0
+    while True:
+        
+        if(timeout > AFF_TIMEOUT):
+            print("Affinity timeout!")
+            sys.exit()
+
+        try:
+            sudo[python3['./qemu_affinity.py', 
+                         '-k', affinity, '--', str(child.pid)]]()
+            break
+        except:
+            sleep(2)
+            timeout += 2
 
     # give guest time to boot
     child.expect("root@jammy:~# ", timeout=BOOT_TIMEOUT)
@@ -166,10 +237,10 @@ def start_client(cid, args):
     f.write(output.decode().replace('\r', ''))
     f.close()
 
-def qemu_run(args):
+def qemu_run(args, affinity, nodes):
     s_pid = os.fork()
     if s_pid == 0:
-        start_server(args)
+        start_server(args, 0, affinity[0])
     else:
         print("Spawning server with pid: " + str(s_pid))
         sleep(5)
@@ -177,7 +248,7 @@ def qemu_run(args):
         for i in range(0, args.clients):
             c_pid = os.fork()
             if(c_pid == 0):
-                start_client(i+1, args)
+                start_client(i+1, args, nodes[i+1], affinity[i+1])
                 sys.exit()
             else:
                 print("Spawning child with pid: " + str(c_pid))
@@ -203,6 +274,56 @@ def setup(args):
 
 def cleanup():
     os.system("rm /tmp/disk*.img")
+
+def get_numa_mapping(args):
+    numa = info.numa_hardware_info()['node_cpu_info']
+   
+    # Ensure we can map cores to clients 
+    tot_cores = 0
+    for node in numa:
+        tot_cores += len(numa[node])
+    print("Total cores available: " + str(tot_cores))
+    
+    requested_cores = args.scores + (args.clients * args.ccores)
+
+    assert tot_cores >= requested_cores, "Requesting more cores than available!"
+
+    # initialize mapping
+    mapping = {}
+    for i in range(args.clients + 1):
+        mapping[i] = []
+
+    # allocate cores for server on first node
+    for i in range(args.scores):
+        try:
+            mapping[0].append(numa[0][0])
+            del numa[0][0] 
+        except:
+            print("Unable to allocate cores for server!")
+            sys.exit(1)
+
+    # Determine which process is on which node
+    nodes = {}
+    nodes[0] = 0
+
+    node = 1
+    client = 1
+    while client < args.clients+1:
+        try:
+            # If current node has enough room for client, allocate it there
+            if(args.ccores <= len(numa[node])):
+                mapping[client] = numa[node][0:args.ccores]
+                del numa[node][0:args.ccores]
+                nodes[client] = node
+                client += 1
+                node = node + 1 % len(numa)
+            else:
+                node = node + 1 % len(numa)
+        except:
+            print("Cannot pin client topology to host!")
+            sys.exit(1)
+
+    return (mapping,nodes)
 
 #
 # Main routine of run.py
@@ -240,7 +361,8 @@ if __name__ == '__main__':
             sys.exit(errno.EINVAL)
         else:
             raise e
-    
+    affinity,nodes = get_numa_mapping(args)
+    print("Detected affinity: ", affinity)
     setup(args)
-    qemu_run(args)
+    qemu_run(args, affinity, nodes)
     cleanup()
