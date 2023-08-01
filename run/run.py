@@ -306,7 +306,7 @@ def get_numa_mapping(args):
     nodes = {}
     nodes[0] = 0
 
-    node = 1
+    node = 1 % len(numa)
     client = 1
     while client < args.clients+1:
         try:
