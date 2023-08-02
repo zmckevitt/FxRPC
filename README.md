@@ -11,7 +11,11 @@ Distributed fxmark benchmark using gRPC. Project uses gRPC to pass basic file re
 - Mkdir
 - Rmdir
 
-## Building
+## Fxmark gRPC Program
+
+The Fxmark gRPC program is located in the ```prog/``` directory.
+
+### Building
 
 This project contains a client/server library for distributed syscalls using gRPC. To build the project, first install the necessary dependencies.
 Rust:
@@ -28,10 +32,6 @@ And then build with the nightly rust toolchain:
 rustup default nightly
 cargo build
 ```
-
-## Fxmark gRPC Program
-
-The Fxmark gRPC program is located in the ```prog/``` directory.
 
 ### Running mixXX Benchmarks
 
@@ -61,6 +61,12 @@ cargo test
 ## Benchmarking Fxmark gRPC
 
 The code to automatically emulate and benchmark the Fxmark gRPC program is located in ```run/```.
+
+To run this, first install necessary python libraries:
+
+```
+pip install py-libnuma
+```
 
 To run the benchmarks with a qemu emulation layer (requires preconfigured disk image - see CONFIGURATION.md):
 ```
