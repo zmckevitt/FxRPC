@@ -59,6 +59,7 @@ parser.add_argument("--wratio", nargs="+", required=True, help="Specify write ra
 parser.add_argument("--openf", nargs="+", required=True, help="Specify number of open files for mix benchmarks")
 parser.add_argument("--duration", type=int, required=True, default=10, help="Experiment duration")
 parser.add_argument("--csv", type=str, required=False, default="fxmark_grpc_benchmarks.csv", help="CSV file")
+parser.add_argument("--offset", type=int, required=False, default=0, help="Offset for numa host")
 
 subparser = parser.add_subparsers(help='Advanced network configuration')
 
@@ -127,18 +128,18 @@ def query_host_numa():
 def start_server(args, node, affinity):
     host_numa_nodes_list = query_host_numa()
     num_host_numa_nodes = len(host_numa_nodes_list)
-    host_nodes = 0 if num_host_numa_nodes == 0 else host_numa_nodes_list[node % num_host_numa_nodes]
+    host_nodes = 0 if num_host_numa_nodes == 0 else host_numa_nodes_list[(node+args.offset) % num_host_numa_nodes]
     cmd = "/usr/bin/env qemu-system-x86_64 /tmp/disk.img" \
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap0" \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d0" \
         + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase" \
         + " -name server,debug-threads=on" \
-        + " -object memory-backend-ram,id=nmem" + str(node) + ",merge=off,dump=on,prealloc=off,size=1024M" \
+        + " -object memory-backend-ram,id=nmem0,merge=off,dump=on,prealloc=off,size=1024M" \
         + ",host-nodes=" + str(host_nodes) \
         + ",policy=bind,share=on" \
-        + " -numa node,memdev=nmem" + str(node) + ",nodeid=" + str(node) \
-        + " -numa cpu,node-id=" + str(node) + ",socket-id=" + str(node) \
+        + " -numa node,memdev=nmem0,nodeid=0" \
+        + " -numa cpu,node-id=0,socket-id=0" \
         + " -smp " + str(args.scores) + ",sockets=1,maxcpus=" + str(args.scores) + " -m 1024M"
         # + " -m 1024 -smp " + str(args.scores) \
 
@@ -177,21 +178,19 @@ def start_server(args, node, affinity):
 def start_client(cid, args, node, affinity):
     host_numa_nodes_list = query_host_numa()
     num_host_numa_nodes = len(host_numa_nodes_list)
-    host_nodes = 0 if num_host_numa_nodes == 0 else host_numa_nodes_list[node % num_host_numa_nodes]
+    host_nodes = 0 if num_host_numa_nodes == 0 else host_numa_nodes_list[(node+args.offset) % num_host_numa_nodes]
     cmd = "/usr/bin/env qemu-system-x86_64 /tmp/disk" + str(cid) + ".img" \
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) \
         + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase" \
         + " -name client" + str(cid) + ",debug-threads=on" \
-        + " -smp " + str(args.ccores) + ",sockets=1,maxcpus=" + str(args.ccores) + " -m 1024M"
-        # + " -object memory-backend-ram,id=nmem" + str(node) + ",merge=off,dump=on,prealloc=off,size=1024M" \
-        # + ",host-nodes=" + str(host_nodes) \
-        # + ",policy=bind,share=on" \
-        # + " -numa node,memdev=nmem" + str(node) + ",nodeid=" + str(node) \
-        # + " -numa cpu,node-id=" + str(node) + ",socket-id=" + str(node) 
-        # + " -smp " + str(args.ccores) + ",sockets=1,maxcpus=" + str(args.ccores)
-        # + " -m 1024 -smp " + str(args.ccores) \
+        + " -smp " + str(args.ccores) + ",sockets=1,maxcpus=" + str(args.ccores) + " -m 1024M" \
+        + " -object memory-backend-ram,id=nmem0,merge=off,dump=on,prealloc=off,size=1024M" \
+        + ",host-nodes=" + str(host_nodes) \
+        + ",policy=bind,share=on" \
+        + " -numa node,memdev=nmem0,nodeid=0" \
+        + " -numa cpu,node-id=0,socket-id=0"
 
     print("Invoking QEMU client with command: ", cmd)
 
