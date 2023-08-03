@@ -264,11 +264,12 @@ def qemu_run(args, affinity, nodes):
         os.kill(s_pid, signal.SIGTERM)
 
 def setup(args):
+    abs_path = os.path.abspath(args.image)
     # create image for server
-    cmd = "qemu-img create -f qcow2 -b " + args.image + " -F qcow2 /tmp/disk.img"
+    cmd = "qemu-img create -f qcow2 -b " + abs_path + " -F qcow2 /tmp/disk.img"
     os.system(cmd)
     for i in range(0, args.clients):
-        cmd = "qemu-img create -f qcow2 -b " + args.image + " -F qcow2 /tmp/disk" + str(i + 1) + ".img"
+        cmd = "qemu-img create -f qcow2 -b " + abs_path + " -F qcow2 /tmp/disk" + str(i + 1) + ".img"
         os.system(cmd)
 
 def cleanup():
