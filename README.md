@@ -30,7 +30,7 @@ sudo apt install protobuf-compiler
 And then build with the nightly rust toolchain:
 ```
 rustup default nightly
-cargo build
+cargo build --release
 ```
 
 ### Running mixXX Benchmarks
@@ -71,5 +71,9 @@ pip install py-libnuma
 To run the benchmarks with a qemu emulation layer (requires preconfigured disk image - see CONFIGURATION.md):
 ```
 cargo run -- --image <path to disk image> --scores <cores for server> --wratio <write ratios> --openf <open files> --duration <experiment duration> --csv <optional alternate csv output>
+```
+Normally, for benchmarks, we run with configuration:
+```
+cargo run -- --image <path to disk image> --scores 4 --wratio 0 --openf 1 --duration 20
 ```
 Note: the program writes and removes ephemeral disk images to/from ```/tmp```.

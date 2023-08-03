@@ -76,7 +76,7 @@ Lastly, ```sudo reboot now``` to ensure that you can automatically boot into roo
 
 To run the ```fxmark_grpc``` program in the guest, first compile it elsewhere (preferrably on a host with Ubuntu 20.04), and scp the binary to the root directory from the guest:
 
-```scp user@host:/path/to/fxmark_grpc/target/debug/fxmark_grpc /root```
+```scp user@host:/path/to/fxmark_grpc/proc/target/release/fxmark_grpc /root```
 
 Note: in order to compile on the guest image, one must clone the repository and follow the instructions in ```README.md``` to build the binary from scratch. This will require extending (resizing) the disk image.
 
