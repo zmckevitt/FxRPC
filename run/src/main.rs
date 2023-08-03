@@ -25,13 +25,6 @@ fn main() {
                 .takes_value(true),
         )
         .arg(
-            Arg::with_name("scores")
-                .long("scores")
-                .required(true)
-                .help("Cores for server")
-                .takes_value(true),
-        )
-        .arg(
             Arg::with_name("wratio")
                 .long("wratio")
                 .required(true)
@@ -65,7 +58,6 @@ fn main() {
         .get_matches_from(args);
 
     let image = value_t!(matches, "image", String).unwrap_or_else(|e| e.exit());
-    let scores = value_t!(matches, "scores", String).unwrap_or_else(|e| e.exit());
     let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();
     let openfs: Vec<&str> = matches.values_of("openf").unwrap().collect();
     let duration = value_t!(matches, "duration", String).unwrap_or_else(|e| e.exit());
@@ -108,7 +100,9 @@ fn main() {
             total_cores, num_clients, cores_per_client
         );
 
-        let _output = Command::new("python3")
+        let scores = format!("{}", num_clients + 1);
+
+        let output = Command::new("python3")
             .arg("run.py")
             .arg("--image")
             .arg(image.clone())
@@ -128,6 +122,9 @@ fn main() {
             .arg(csv.clone())
             .output()
             .expect("failed to execute process");
+
+        println!("Status: {}", output.status);
+        println!("Stdout: {}", String::from_utf8_lossy(&output.stdout));
 
         if total_cores == 1 {
             total_cores = 0;
