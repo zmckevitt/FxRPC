@@ -11,6 +11,8 @@ Distributed fxmark benchmark using gRPC. Project uses gRPC to pass basic file re
 - Mkdir
 - Rmdir
 
+This project will automatically deploy virtualized Ubuntu images to run the benchmarking suite via qemu, and log the results of the benchmark to the ```run/``` directory.
+
 ## System dependencies
 
 First, install Rust with nightly:
@@ -27,6 +29,14 @@ You will need to reset your shell for this to take effect:
 ```
 exit
 ```
+To build the Fxmark gRPC program in ```prog/```, you will need the following dependencies:
+```
+sudo apt install protobuf-compiler -y
+```
+To run the automated benchmark runner in ```run/```, you will need the python numa package:
+```
+pip install py-libnuma
+```
 
 ## Fxmark gRPC Program
 
@@ -34,12 +44,7 @@ The Fxmark gRPC program is located in the ```prog/``` directory.
 
 ### Building
 
-This project contains a client/server library for distributed syscalls using gRPC. To build the project, first install the necessary dependencies.
-gRPC:
-```
-sudo apt install protobuf-compiler
-```
-And then build with the nightly rust toolchain:
+This project contains a client/server library for distributed syscalls using gRPC. To build the project, first install the necessary dependencies, then build with the nightly rust toolchain:
 ```
 cargo build --release
 ```
@@ -72,12 +77,6 @@ cargo test
 ## Benchmarking Fxmark gRPC
 
 The code to automatically emulate and benchmark the Fxmark gRPC program is located in ```run/```.
-
-To run this, first install necessary python libraries:
-
-```
-pip install py-libnuma
-```
 
 To run the benchmarks with a qemu emulation layer (requires preconfigured disk image - see CONFIGURATION.md):
 ```
