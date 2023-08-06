@@ -66,6 +66,11 @@ fn main() {
     let wr_joined = wratios.join(" ");
     let of_joined = openfs.join(" ");
 
+    fn mem_fn(num_cores: usize) -> usize {
+        // Memory must also be divisible by number of clients, which could be 1, 2, 3, or 4
+        2048 * (((num_cores + 3 - 1) / 3) * 3)
+    }
+
     let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients\n";
     let _ = remove_file(csv.clone());
     let mut csv_file = OpenOptions::new()
@@ -96,7 +101,7 @@ fn main() {
 
         let cores_per_client = total_cores / num_clients;
         eprintln!(
-            "\tRunning test with {:?} total core(s), {:?} (client|replica)(s) (cores_per_(client|replica)={:?})",
+            "\tRunning test with {:?} total core(s), {:?} clients (cores_per_client={:?})",
             total_cores, num_clients, cores_per_client
         );
 
@@ -120,6 +125,8 @@ fn main() {
             .arg(duration.clone())
             .arg("--csv")
             .arg(csv.clone())
+            .arg("--memory")
+            .arg(format!("{}", mem_fn(total_cores) / (num_clients + 1)))
             .output()
             .expect("failed to execute process");
 

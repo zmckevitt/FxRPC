@@ -51,15 +51,16 @@ NETWORK_INFRA_IP = '172.31.0.20/24'
 #
 parser = argparse.ArgumentParser()
 
-parser.add_argument("--image", required=True, help="Specify disk image to use")
-parser.add_argument("--scores", type=int, required=True, default=1, help="Cores for server")
-parser.add_argument("--clients", type=int, required=True, default=1, help="Setup n clients")
-parser.add_argument("--ccores", type=int, required=True, default=1, help="Cores per client")
-parser.add_argument("--wratio", nargs="+", required=True, help="Specify write ratio for mix benchmarks")
-parser.add_argument("--openf", nargs="+", required=True, help="Specify number of open files for mix benchmarks")
-parser.add_argument("--duration", type=int, required=True, default=10, help="Experiment duration")
-parser.add_argument("--csv", type=str, required=False, default="fxmark_grpc_benchmarks.csv", help="CSV file")
-parser.add_argument("--offset", type=int, required=False, default=0, help="Offset for numa host")
+parser.add_argument("-i", "--image", required=True, help="Specify disk image to use")
+parser.add_argument("-s", "--scores", type=int, required=True, default=1, help="Cores for server")
+parser.add_argument("-nc", "--clients", type=int, required=True, default=1, help="Setup n clients")
+parser.add_argument("-c", "--ccores", type=int, required=True, default=1, help="Cores per client")
+parser.add_argument("-w", "--wratio", nargs="+", required=True, help="Specify write ratio for mix benchmarks")
+parser.add_argument("-o", "--openf", nargs="+", required=True, help="Specify number of open files for mix benchmarks")
+parser.add_argument("-d", "--duration", type=int, required=True, default=10, help="Experiment duration")
+parser.add_argument("-f", "--csv", type=str, required=False, default="fxmark_grpc_benchmarks.csv", help="CSV file")
+parser.add_argument("-n", "--offset", type=int, required=False, default=0, help="Offset for numa host")
+parser.add_argument("-m", "--memory", type=int, required=False, default=1024, help="Amount of memory to give to each instance")
 
 subparser = parser.add_subparsers(help='Advanced network configuration')
 
@@ -135,12 +136,12 @@ def start_server(args, node, affinity):
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d0" \
         + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase" \
         + " -name server,debug-threads=on" \
-        + " -object memory-backend-ram,id=nmem0,merge=off,dump=on,prealloc=off,size=1024M" \
+        + " -object memory-backend-memfd,id=nmem0,merge=off,dump=on,prealloc=off,size=" + str(args.memory) + "M" \
         + ",host-nodes=" + str(host_nodes) \
-        + ",policy=bind,share=on" \
+        + ",policy=bind,hugetlb=on,hugetlbsize=2M,share=on" \
         + " -numa node,memdev=nmem0,nodeid=0" \
         + " -numa cpu,node-id=0,socket-id=0" \
-        + " -smp " + str(args.scores) + ",sockets=1,maxcpus=" + str(args.scores) + " -m 1024M"
+        + " -smp " + str(args.scores) + ",sockets=1,maxcpus=" + str(args.scores) + " -m " + str(args.memory) + "M"
         # + " -m 1024 -smp " + str(args.scores) \
 
     print("Invoking QEMU server with command: ", cmd)
@@ -185,10 +186,10 @@ def start_client(cid, args, node, affinity):
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) \
         + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase" \
         + " -name client" + str(cid) + ",debug-threads=on" \
-        + " -smp " + str(args.ccores) + ",sockets=1,maxcpus=" + str(args.ccores) + " -m 1024M" \
-        + " -object memory-backend-ram,id=nmem0,merge=off,dump=on,prealloc=off,size=1024M" \
+        + " -smp " + str(args.ccores) + ",sockets=1,maxcpus=" + str(args.ccores) + " -m " + str(args.memory) + "M" \
+        + " -object memory-backend-memfd,id=nmem0,merge=off,dump=on,prealloc=off,size=" + str(args.memory) + "M" \
         + ",host-nodes=" + str(host_nodes) \
-        + ",policy=bind,share=on" \
+        + ",policy=bind,hugetlb=on,hugetlbsize=2M,share=on" \
         + " -numa node,memdev=nmem0,nodeid=0" \
         + " -numa cpu,node-id=0,socket-id=0"
 
