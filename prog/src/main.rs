@@ -87,10 +87,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match mode.as_str() {
         "uds_server" => {
-            let path = "/tmp/tonic/test";
-
             // Must unwrap as function is asynchronous
-            start_rpc_server_uds(path).unwrap()
+            start_rpc_server_uds(UDS_PATH).unwrap()
         }
         "loc_server" | "emu_server" => {
             let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());

@@ -23,7 +23,8 @@ type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 type Result<T, E = StdError> = ::std::result::Result<T, E>;
 
 // File system path
-pub const PATH: &str = "/dev/shm/";
+pub const FS_PATH: &str = "/dev/shm/";
+pub const UDS_PATH: &str = "/tmp/tonic/fxmark_grpc";
 
 #[derive(Clone, Copy)]
 pub enum LogMode {
@@ -215,7 +216,7 @@ impl BlockingClient {
 pub struct SyscallService {}
 
 fn libc_open(filename: &str, flags: i32, mode: u32) -> Response<syscalls::SyscallResponse> {
-    let file_path = format!("{}{}{}", PATH, filename, char::from(0));
+    let file_path = format!("{}{}{}", FS_PATH, filename, char::from(0));
     let fd;
     unsafe {
         fd = open(file_path.as_ptr() as *const i8, flags, mode);
@@ -291,7 +292,7 @@ fn libc_close(fd: i32) -> Response<syscalls::SyscallResponse> {
 }
 
 fn libc_remove(filename: &str) -> Response<syscalls::SyscallResponse> {
-    let file_path = format!("{}{}{}", PATH, filename, char::from(0));
+    let file_path = format!("{}{}{}", FS_PATH, filename, char::from(0));
     let fd;
     unsafe {
         fd = remove(file_path.as_ptr() as *const i8);
@@ -314,7 +315,7 @@ fn libc_fsync(fd: i32) -> Response<syscalls::SyscallResponse> {
 }
 
 fn libc_mkdir(dirname: &str, mode: u32) -> Response<syscalls::SyscallResponse> {
-    let dir_path = format!("{}{}{}", PATH, dirname, char::from(0));
+    let dir_path = format!("{}{}{}", FS_PATH, dirname, char::from(0));
     let res;
     unsafe {
         res = mkdir(dir_path.as_ptr() as *const i8, mode);
@@ -326,7 +327,7 @@ fn libc_mkdir(dirname: &str, mode: u32) -> Response<syscalls::SyscallResponse> {
 }
 
 fn libc_rmdir(dirname: &str) -> Response<syscalls::SyscallResponse> {
-    let dir_path = format!("{}{}{}", PATH, dirname, char::from(0));
+    let dir_path = format!("{}{}{}", FS_PATH, dirname, char::from(0));
     let res;
     unsafe {
         res = rmdir(dir_path.as_ptr() as *const i8);
