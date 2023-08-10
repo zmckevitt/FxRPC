@@ -12,7 +12,12 @@ use syscalls::{
 };
 use tokio::runtime::Builder;
 use tokio::runtime::Runtime;
+use tokio::net::UnixListener;
+use tokio_stream::wrappers::UnixListenerStream;
 use tonic::{transport::Server, Request, Response, Status};
+
+use std::path::Path;
+use std::os::unix::net::UnixListener as StdUnixListener;
 
 type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 type Result<T, E = StdError> = ::std::result::Result<T, E>;
@@ -423,7 +428,7 @@ impl Syscall for SyscallService {
     }
 }
 
-pub fn start_rpc_server(bind_addr: &str, port: u64) {
+pub fn start_rpc_server_tcp(bind_addr: &str, port: u64) {
     // Create Syscall server
     let address = format!("{}:{}", bind_addr, port).parse().unwrap();
     let syscalls_service = SyscallService::default();
@@ -436,4 +441,30 @@ pub fn start_rpc_server(bind_addr: &str, port: u64) {
         .serve(address);
     rt.block_on(server_future)
         .expect("Failed to successfully run the future on RunTime.");
+}
+
+#[tokio::main]
+pub async fn start_rpc_server_uds(path: &str) -> Result<(), Box<dyn std::error::Error>> {
+
+    println!("Starting server on UDS path: {}", path);
+
+    // Remove existing UDS dir
+    let _ = std::fs::remove_dir_all(Path::new(path).parent().unwrap());
+
+    // Create dir for UDS
+    let _ = std::fs::create_dir_all(Path::new(path).parent().unwrap());
+
+    let syscalls_service = SyscallService::default();
+
+    // Create standard, blocking UDS
+    let std_uds = StdUnixListener::bind(path).unwrap();
+
+    // Create tokio UDS
+    let uds = UnixListener::from_std(std_uds).unwrap();
+    let uds_stream = UnixListenerStream::new(uds);
+    Server::builder()
+        .add_service(SyscallServer::new(syscalls_service))
+        .serve_with_incoming(uds_stream)
+        .await?;
+    Ok(())
 }

@@ -25,9 +25,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::with_name("mode")
                 .long("mode")
                 .required(true)
-                .help("loc_client, emu_client, loc_server, or emu_server")
+                .help("loc_client, emu_client, loc_server, emu_server, or uds_server")
                 .takes_value(true)
-                .possible_values(&["loc_client", "emu_client", "loc_server", "emu_server"]),
+                .possible_values(&["loc_client", "emu_client", "loc_server", "emu_server", "uds_server"]),
         )
         .arg(
             Arg::with_name("port")
@@ -86,6 +86,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let bench_name = String::from("mix");
 
     match mode.as_str() {
+        "uds_server" => {
+            let path = "/tmp/tonic/test";
+
+            // Must unwrap as function is asynchronous
+            start_rpc_server_uds(path).unwrap()
+        }
         "loc_server" | "emu_server" => {
             let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());
             let bind_addr = if mode == "loc_server" {
@@ -94,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "172.31.0.1"
             };
 
-            start_rpc_server(bind_addr, port)
+            start_rpc_server_tcp(bind_addr, port)
         }
         "loc_client" | "emu_client" => {
             let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();

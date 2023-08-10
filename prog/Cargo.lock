@@ -536,6 +536,7 @@ dependencies = [
  "rawtime",
  "serde",
  "tokio",
+ "tokio-stream",
  "tonic",
  "tonic-build",
  "x86",
