@@ -25,9 +25,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             Arg::with_name("mode")
                 .long("mode")
                 .required(true)
-                .help("loc_client, emu_client, loc_server, emu_server, or uds_server")
+                .help("loc_client, emu_client, uds_client, loc_server, emu_server, or uds_server")
                 .takes_value(true)
-                .possible_values(&["loc_client", "emu_client", "loc_server", "emu_server", "uds_server"]),
+                .possible_values(&["loc_client", "emu_client", "uds_client", "loc_server", "emu_server", "uds_server"]),
         )
         .arg(
             Arg::with_name("port")
@@ -89,6 +89,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         "uds_server" => {
             // Must unwrap as function is asynchronous
             start_rpc_server_uds(UDS_PATH).unwrap()
+        }
+        "uds_client" => {
+            uds_client().unwrap()
         }
         "loc_server" | "emu_server" => {
             let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());

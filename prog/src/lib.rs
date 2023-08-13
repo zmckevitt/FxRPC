@@ -12,9 +12,10 @@ use syscalls::{
 };
 use tokio::runtime::Builder;
 use tokio::runtime::Runtime;
-use tokio::net::UnixListener;
+use tokio::net::{UnixListener, UnixStream};
 use tokio_stream::wrappers::UnixListenerStream;
-use tonic::{transport::Server, Request, Response, Status};
+use tonic::{transport::Server, Request, Response, Status, transport::Endpoint, transport::Uri};
+use tower::service_fn;
 
 use std::path::Path;
 use std::os::unix::net::UnixListener as StdUnixListener;
@@ -34,6 +35,26 @@ pub enum LogMode {
 
 pub mod syscalls {
     tonic::include_proto!("syscalls");
+}
+
+#[tokio::main]
+pub async fn uds_client() -> Result<(), Box<dyn std::error::Error>> {
+    let channel = Endpoint::try_from("http://[::]:8080")?
+        .connect_with_connector(service_fn(|_: Uri| {
+            UnixStream::connect(UDS_PATH)
+        }))
+        .await?;
+
+    let mut client = SyscallClient::new(channel);
+    let request = tonic::Request::new(OpenRequest {
+        path: "read_test.txt".to_string(),
+        flags: O_RDWR | O_CREAT,
+        mode: S_IRWXU,
+    });
+
+    let response = client.open(request).await?.into_inner();
+    println!("Response: {:?}", response);
+    Ok(())
 }
 
 //////////////////////////////////////// CLIENT ////////////////////////////////////////
