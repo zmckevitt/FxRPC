@@ -38,7 +38,7 @@ pub mod syscalls {
 }
 
 #[tokio::main]
-pub async fn uds_client() -> Result<(), Box<dyn std::error::Error>> {
+pub async fn start_uds_client() -> Result<(), Box<dyn std::error::Error>> {
     let channel = Endpoint::try_from("http://[::]:8080")?
         .connect_with_connector(service_fn(|_: Uri| {
             UnixStream::connect(UDS_PATH)
@@ -79,7 +79,7 @@ unsafe impl Send for ClientWrapper {}
 impl Copy for ClientWrapper {}
 
 impl BlockingClient {
-    pub fn connect<D>(dst: D) -> Result<Self, tonic::transport::Error>
+    pub fn connect_tcp<D>(dst: D) -> Result<Self, tonic::transport::Error>
     where
         D: TryInto<tonic::transport::Endpoint>,
         D::Error: Into<StdError>,
@@ -90,7 +90,7 @@ impl BlockingClient {
         Ok(Self { client, rt })
     }
 
-    pub fn grpc_open(
+    pub fn grpc_open_tcp(
         &mut self,
         path: &str,
         flags: i32,
@@ -105,7 +105,7 @@ impl BlockingClient {
         Ok(response.result)
     }
 
-    fn grpc_read_base(
+    fn grpc_read_base_tcp(
         &mut self,
         pread: bool,
         fd: i32,
@@ -125,26 +125,26 @@ impl BlockingClient {
         Ok(response.result)
     }
 
-    pub fn grpc_read(
+    pub fn grpc_read_tcp(
         &mut self,
         fd: i32,
         page: &mut Vec<u8>,
         size: usize,
     ) -> Result<i32, Box<dyn std::error::Error>> {
-        self.grpc_read_base(false, fd, page, size, 0)
+        self.grpc_read_base_tcp(false, fd, page, size, 0)
     }
 
-    pub fn grpc_pread(
+    pub fn grpc_pread_tcp(
         &mut self,
         fd: i32,
         page: &mut Vec<u8>,
         size: usize,
         offset: i64,
     ) -> Result<i32, Box<dyn std::error::Error>> {
-        self.grpc_read_base(true, fd, page, size, offset)
+        self.grpc_read_base_tcp(true, fd, page, size, offset)
     }
 
-    fn grpc_write_base(
+    fn grpc_write_base_tcp(
         &mut self,
         pwrite: bool,
         fd: i32,
@@ -164,33 +164,33 @@ impl BlockingClient {
         Ok(response.result)
     }
 
-    pub fn grpc_write(
+    pub fn grpc_write_tcp(
         &mut self,
         fd: i32,
         page: &Vec<u8>,
         size: usize,
     ) -> Result<i32, Box<dyn std::error::Error>> {
-        self.grpc_write_base(false, fd, page, size, 0)
+        self.grpc_write_base_tcp(false, fd, page, size, 0)
     }
 
-    pub fn grpc_pwrite(
+    pub fn grpc_pwrite_tcp(
         &mut self,
         fd: i32,
         page: &Vec<u8>,
         size: usize,
         offset: i64,
     ) -> Result<i32, Box<dyn std::error::Error>> {
-        self.grpc_write_base(true, fd, page, size, offset)
+        self.grpc_write_base_tcp(true, fd, page, size, offset)
     }
 
-    pub fn grpc_close(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    pub fn grpc_close_tcp(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(CloseRequest { fd: fd });
 
         let response = self.rt.block_on(self.client.close(request))?.into_inner();
         Ok(response.result)
     }
 
-    pub fn grpc_remove(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
+    pub fn grpc_remove_tcp(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(RemoveRequest {
             path: path.to_string(),
         });
@@ -198,14 +198,14 @@ impl BlockingClient {
         Ok(response.result)
     }
 
-    pub fn grpc_fsync(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
+    pub fn grpc_fsync_tcp(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(FsyncRequest { fd: fd });
 
         let response = self.rt.block_on(self.client.fsync(request))?.into_inner();
         Ok(response.result)
     }
 
-    pub fn grpc_mkdir(&mut self, path: &str, mode: u32) -> Result<i32, Box<dyn std::error::Error>> {
+    pub fn grpc_mkdir_tcp(&mut self, path: &str, mode: u32) -> Result<i32, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(DirRequest {
             path: path.to_string(),
             mode: mode,
@@ -214,7 +214,7 @@ impl BlockingClient {
         Ok(response.result)
     }
 
-    pub fn grpc_rmdir(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
+    pub fn grpc_rmdir_tcp(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(DirRequest {
             path: path.to_string(),
             mode: 0,
@@ -223,7 +223,7 @@ impl BlockingClient {
         Ok(response.result)
     }
 
-    pub fn grpc_fstat_size(&mut self, fd: i32) -> Result<i64, Box<dyn std::error::Error>> {
+    pub fn grpc_fstat_size_tcp(&mut self, fd: i32) -> Result<i64, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(FstatRequest { fd: fd });
 
         let response = self.rt.block_on(self.client.fstat(request))?.into_inner();
