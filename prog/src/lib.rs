@@ -351,22 +351,6 @@ impl BlockingClient {
     }
 }
 
-// Client driver for UDS, needs separate tokio runtime
-#[tokio::main]
-pub async fn start_uds_client() -> Result<(), Box<dyn std::error::Error>> {
-
-    let mut grpc_client = BlockingClient::connect_uds().await?;
-
-    let request = tonic::Request::new(OpenRequest {
-        path: "read_test.txt".to_string(),
-        flags: O_RDWR | O_CREAT,
-        mode: S_IRWXU,
-    });
-
-    let response = grpc_client.grpc_open_uds("read_test.txt", 0, 0).await?;
-    println!("Response: {:?}", response);
-    Ok(())
-}
 //////////////////////////////////////// SERVER ////////////////////////////////////////
 
 #[derive(Debug, Default)]
