@@ -37,26 +37,6 @@ pub mod syscalls {
     tonic::include_proto!("syscalls");
 }
 
-#[tokio::main]
-pub async fn start_uds_client() -> Result<(), Box<dyn std::error::Error>> {
-    let channel = Endpoint::try_from("http://[::]:8080")?
-        .connect_with_connector(service_fn(|_: Uri| {
-            UnixStream::connect(UDS_PATH)
-        }))
-        .await?;
-
-    let mut client = SyscallClient::new(channel);
-    let request = tonic::Request::new(OpenRequest {
-        path: "read_test.txt".to_string(),
-        flags: O_RDWR | O_CREAT,
-        mode: S_IRWXU,
-    });
-
-    let response = client.open(request).await?.into_inner();
-    println!("Response: {:?}", response);
-    Ok(())
-}
-
 //////////////////////////////////////// CLIENT ////////////////////////////////////////
 
 #[derive(Clone)]
@@ -69,14 +49,8 @@ pub struct ClientParams {
 
 pub struct BlockingClient {
     client: SyscallClient<tonic::transport::Channel>,
-    rt: Runtime,
+    rt: Option<Runtime>,
 }
-
-#[derive(Clone)]
-pub struct ClientWrapper(pub *mut BlockingClient);
-
-unsafe impl Send for ClientWrapper {}
-impl Copy for ClientWrapper {}
 
 impl BlockingClient {
     pub fn connect_tcp<D>(dst: D) -> Result<Self, tonic::transport::Error>
@@ -87,7 +61,7 @@ impl BlockingClient {
         let rt = Builder::new_multi_thread().enable_all().build().unwrap();
         let client = rt.block_on(SyscallClient::connect(dst))?;
 
-        Ok(Self { client, rt })
+        Ok(Self { client, rt: Some(rt) })
     }
 
     pub fn grpc_open_tcp(
@@ -101,7 +75,7 @@ impl BlockingClient {
             flags: flags,
             mode: mode,
         });
-        let response = self.rt.block_on(self.client.open(request))?.into_inner();
+        let response = self.rt.as_ref().unwrap().block_on(self.client.open(request))?.into_inner();
         Ok(response.result)
     }
 
@@ -120,7 +94,7 @@ impl BlockingClient {
             offset: offset,
         });
 
-        let response = self.rt.block_on(self.client.read(request))?.into_inner();
+        let response = self.rt.as_ref().unwrap().block_on(self.client.read(request))?.into_inner();
         *page = response.page;
         Ok(response.result)
     }
@@ -160,7 +134,7 @@ impl BlockingClient {
             offset: offset,
         });
 
-        let response = self.rt.block_on(self.client.write(request))?.into_inner();
+        let response = self.rt.as_ref().unwrap().block_on(self.client.write(request))?.into_inner();
         Ok(response.result)
     }
 
@@ -186,7 +160,7 @@ impl BlockingClient {
     pub fn grpc_close_tcp(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(CloseRequest { fd: fd });
 
-        let response = self.rt.block_on(self.client.close(request))?.into_inner();
+        let response = self.rt.as_ref().unwrap().block_on(self.client.close(request))?.into_inner();
         Ok(response.result)
     }
 
@@ -194,14 +168,14 @@ impl BlockingClient {
         let request = tonic::Request::new(RemoveRequest {
             path: path.to_string(),
         });
-        let response = self.rt.block_on(self.client.remove(request))?.into_inner();
+        let response = self.rt.as_ref().unwrap().block_on(self.client.remove(request))?.into_inner();
         Ok(response.result)
     }
 
     pub fn grpc_fsync_tcp(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(FsyncRequest { fd: fd });
 
-        let response = self.rt.block_on(self.client.fsync(request))?.into_inner();
+        let response = self.rt.as_ref().unwrap().block_on(self.client.fsync(request))?.into_inner();
         Ok(response.result)
     }
 
@@ -210,7 +184,7 @@ impl BlockingClient {
             path: path.to_string(),
             mode: mode,
         });
-        let response = self.rt.block_on(self.client.mkdir(request))?.into_inner();
+        let response = self.rt.as_ref().unwrap().block_on(self.client.mkdir(request))?.into_inner();
         Ok(response.result)
     }
 
@@ -219,18 +193,180 @@ impl BlockingClient {
             path: path.to_string(),
             mode: 0,
         });
-        let response = self.rt.block_on(self.client.rmdir(request))?.into_inner();
+        let response = self.rt.as_ref().unwrap().block_on(self.client.rmdir(request))?.into_inner();
         Ok(response.result)
     }
 
     pub fn grpc_fstat_size_tcp(&mut self, fd: i32) -> Result<i64, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(FstatRequest { fd: fd });
 
-        let response = self.rt.block_on(self.client.fstat(request))?.into_inner();
+        let response = self.rt.as_ref().unwrap().block_on(self.client.fstat(request))?.into_inner();
         Ok(response.size)
+    }
+    
+    pub async fn connect_uds() -> Result<Self, tonic::transport::Error>
+    {
+        let channel = Endpoint::try_from("http://[::]:8080")?
+            .connect_with_connector(service_fn(|_: Uri| {
+                UnixStream::connect(UDS_PATH)
+            }))
+            .await?;
+
+        let client = SyscallClient::new(channel);
+
+        Ok(Self { client, rt: None::<Runtime> })
+    }
+    
+    pub async fn grpc_open_uds(
+        &mut self,
+        path: &str,
+        flags: i32,
+        mode: u32,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(OpenRequest {
+            path: path.to_string(),
+            flags: flags,
+            mode: mode,
+        });
+        let response = self.client.open(request).await?.into_inner();
+        Ok(response.result)
+    }
+
+    async fn grpc_read_base_uds(
+        &mut self,
+        pread: bool,
+        fd: i32,
+        page: &mut Vec<u8>,
+        size: usize,
+        offset: i64,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(ReadRequest {
+            pread: pread,
+            fd: fd,
+            size: size as u32,
+            offset: offset,
+        });
+
+        let response = self.client.read(request).await?.into_inner();
+        *page = response.page;
+        Ok(response.result)
+    }
+
+    pub async fn grpc_read_uds(
+        &mut self,
+        fd: i32,
+        page: &mut Vec<u8>,
+        size: usize,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
+        self.grpc_read_base_uds(false, fd, page, size, 0).await
+    }
+
+    pub async fn grpc_pread_uds(
+        &mut self,
+        fd: i32,
+        page: &mut Vec<u8>,
+        size: usize,
+        offset: i64,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
+        self.grpc_read_base_uds(true, fd, page, size, offset).await
+    }
+
+    async fn grpc_write_base_uds(
+        &mut self,
+        pwrite: bool,
+        fd: i32,
+        page: &Vec<u8>,
+        len: usize,
+        offset: i64,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(WriteRequest {
+            pwrite: pwrite,
+            fd: fd,
+            page: page.to_vec(),
+            len: len as u32,
+            offset: offset,
+        });
+
+        let response = self.client.write(request).await?.into_inner();
+        Ok(response.result)
+    }
+
+    pub async fn grpc_write_uds(
+        &mut self,
+        fd: i32,
+        page: &Vec<u8>,
+        size: usize,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
+        self.grpc_write_base_uds(false, fd, page, size, 0).await
+    }
+
+    pub async fn grpc_pwrite_uds(
+        &mut self,
+        fd: i32,
+        page: &Vec<u8>,
+        size: usize,
+        offset: i64,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
+        self.grpc_write_base_uds(true, fd, page, size, offset).await
+    }
+
+    pub async fn grpc_close_uds(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(CloseRequest { fd: fd });
+
+        let response = self.client.close(request).await?.into_inner();
+        Ok(response.result)
+    }
+
+    pub async fn grpc_remove_uds(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(RemoveRequest {
+            path: path.to_string(),
+        });
+        let response = self.client.remove(request).await?.into_inner();
+        Ok(response.result)
+    }
+
+    pub async fn grpc_fsync_uds(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(FsyncRequest { fd: fd });
+
+        let response = self.client.fsync(request).await?.into_inner();
+        Ok(response.result)
+    }
+
+    pub async fn grpc_mkdir_uds(&mut self, path: &str, mode: u32) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(DirRequest {
+            path: path.to_string(),
+            mode: mode,
+        });
+        let response = self.client.mkdir(request).await?.into_inner();
+        Ok(response.result)
+    }
+
+    pub async fn grpc_rmdir_uds(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
+        let request = tonic::Request::new(DirRequest {
+            path: path.to_string(),
+            mode: 0,
+        });
+        let response = self.client.rmdir(request).await?.into_inner();
+        Ok(response.result)
     }
 }
 
+// Client driver for UDS, needs separate tokio runtime
+#[tokio::main]
+pub async fn start_uds_client() -> Result<(), Box<dyn std::error::Error>> {
+
+    let mut grpc_client = BlockingClient::connect_uds().await?;
+
+    let request = tonic::Request::new(OpenRequest {
+        path: "read_test.txt".to_string(),
+        flags: O_RDWR | O_CREAT,
+        mode: S_IRWXU,
+    });
+
+    let response = grpc_client.grpc_open_uds("read_test.txt", 0, 0).await?;
+    println!("Response: {:?}", response);
+    Ok(())
+}
 //////////////////////////////////////// SERVER ////////////////////////////////////////
 
 #[derive(Debug, Default)]
