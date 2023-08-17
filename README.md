@@ -80,10 +80,14 @@ The code to automatically emulate and benchmark the Fxmark gRPC program is locat
 
 To run the benchmarks with a qemu emulation layer (requires preconfigured disk image - see CONFIGURATION.md):
 ```
-cargo run -- --image <path to disk image> --wratio <write ratios> --openf <open files> --duration <experiment duration> --csv <optional alternate csv output>
+cargo run -- --transport <uds or tcp> --image <path to disk image> --wratio <write ratios> --openf <open files> --duration <experiment duration> --csv <optional alternate csv output>
 ```
-Normally, for benchmarks, we run with configuration:
+For example, to run emulated fxmark (tcp):
 ```
-cargo run -- --image <path to disk image> --wratio 0 --openf 1 --duration 20
+cargo run -- --transport tcp --image <path to disk image> --wratio 0 --openf 1 --duration 20
+```
+To run the same benchmark using uds (requires ```prog/``` to be built with ```--release```):
+```
+cargo run -- --transport uds --wratio 0 --openf 1 --duration 20
 ```
 Note: the program writes and removes ephemeral disk images to/from ```/tmp```.
