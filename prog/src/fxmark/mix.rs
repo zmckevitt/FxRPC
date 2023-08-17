@@ -55,7 +55,7 @@ impl Bench for MIX {
                 client
                     .lock()
                     .unwrap()
-                    .grpc_open_tcp(&filename, O_RDWR | O_CREAT, S_IRWXU)
+                    .grpc_open(&filename, O_RDWR | O_CREAT, S_IRWXU)
             }
             .expect("FileOpen syscall failed");
 
@@ -63,7 +63,7 @@ impl Bench for MIX {
                 client
                     .lock()
                     .unwrap()
-                    .grpc_pwrite_tcp(fd, &self.page, PAGE_SIZE, self.size)
+                    .grpc_pwrite(fd, &self.page, PAGE_SIZE, self.size)
                     .expect("FileWriteAt syscall failed")
             };
             assert_eq!(ret, PAGE_SIZE as i32);
@@ -94,7 +94,7 @@ impl Bench for MIX {
             client
                 .lock()
                 .unwrap()
-                .grpc_pwrite_tcp(fd as i32, &page, PAGE_SIZE, self.size)
+                .grpc_pwrite(fd as i32, &page, PAGE_SIZE, self.size)
                 .expect("can't write_at");
         }
 
@@ -120,7 +120,7 @@ impl Bench for MIX {
                         if client
                             .lock()
                             .unwrap()
-                            .grpc_pwrite_tcp(fd as i32, &page, PAGE_SIZE, offset as i64)
+                            .grpc_pwrite(fd as i32, &page, PAGE_SIZE, offset as i64)
                             .expect("FileWriteAt syscall failed")
                             != PAGE_SIZE as i32
                         {
@@ -130,7 +130,7 @@ impl Bench for MIX {
                         if client
                             .lock()
                             .unwrap()
-                            .grpc_pread_tcp(fd as i32, &mut page, PAGE_SIZE, offset as i64)
+                            .grpc_pread(fd as i32, &mut page, PAGE_SIZE, offset as i64)
                             .expect("FileReadAt syscall failed")
                             != PAGE_SIZE as i32
                         {
@@ -160,7 +160,7 @@ impl Bench for MIX {
                 client
                     .lock()
                     .unwrap()
-                    .grpc_close_tcp(fd as i32)
+                    .grpc_close(fd as i32)
                     .expect("FileClose syscall failed");
             }
         }

@@ -90,9 +90,6 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             // Must unwrap as function is asynchronous
             start_rpc_server_uds(UDS_PATH).unwrap()
         }
-        "uds_client" => {
-            start_uds_client().unwrap()
-        }
         "loc_server" | "emu_server" => {
             let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());
             let bind_addr = if mode == "loc_server" {
@@ -103,7 +100,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             start_rpc_server_tcp(bind_addr, port)
         }
-        "loc_client" | "emu_client" => {
+        "loc_client" | "emu_client"  | "uds_client" => {
             let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();
             let wratios: Vec<usize> = wratios
                 .into_iter()
@@ -173,7 +170,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "http://172.31.0.1:8080"
             };
 
-            let client = Arc::new(Mutex::new(BlockingClient::connect_tcp(host_addr).unwrap()));
+            let client = if mode != "uds_client" { 
+                Arc::new(Mutex::new(BlockingClient::connect_tcp(host_addr).unwrap()))
+            } else {
+                Arc::new(Mutex::new(BlockingClient::connect_uds().unwrap()))
+
+            };
             for of in openfs {
                 for wr in &wratios {
                     bench(

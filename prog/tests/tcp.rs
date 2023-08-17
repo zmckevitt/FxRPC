@@ -3,24 +3,23 @@ use libc::{O_CREAT, O_RDWR, S_IRWXU};
 
 const PAGE_SIZE: usize = 1024;
 
-#[tokio::main]
-async fn read_test_base(pread: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = BlockingClient::connect_uds().await?;
+fn read_test_base(pread: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = BlockingClient::connect_tcp("http://[::1]:8080")?;
 
     let test = if pread { "pReadTest" } else { "ReadTest" };
 
     let filename = "read_test.txt";
     let fd = client
-        .grpc_open_uds(filename, O_CREAT | O_RDWR, S_IRWXU)
-        .await?;
+        .grpc_open(filename, O_CREAT | O_RDWR, S_IRWXU)
+        .unwrap();
     assert!(fd != -1, "{}: Open Failed", test);
 
     // let page: &mut [u8; PAGE_SIZE] = &mut [0; PAGE_SIZE];
     let mut page: Vec<u8> = vec![0; PAGE_SIZE];
     let result = if pread {
-        client.grpc_pread_uds(fd, &mut page, PAGE_SIZE, 0).await?
+        client.grpc_pread(fd, &mut page, PAGE_SIZE, 0).unwrap()
     } else {
-        client.grpc_read_uds(fd, &mut page, PAGE_SIZE).await?
+        client.grpc_read(fd, &mut page, PAGE_SIZE).unwrap()
     };
     assert!(result != -1, "{}: Read Failed", test);
 
@@ -33,10 +32,10 @@ async fn read_test_base(pread: bool) -> Result<(), Box<dyn std::error::Error>> {
         page_str
     );
 
-    let result = client.grpc_fsync_uds(fd).await?;
+    let result = client.grpc_fsync(fd).unwrap();
     assert!(result != -1, "{}: Fsync Failed", test);
 
-    let result = client.grpc_close_uds(fd).await?;
+    let result = client.grpc_close(fd).unwrap();
     assert!(result != -1, "{}: Close Failed", test);
 
     Ok(())
@@ -52,37 +51,36 @@ fn pread_test() -> Result<(), Box<dyn std::error::Error>> {
     read_test_base(true)
 }
 
-#[tokio::main]
-async fn write_test_base(pwrite: bool) -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = BlockingClient::connect_uds().await?;
+fn write_test_base(pwrite: bool) -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = BlockingClient::connect_tcp("http://[::1]:8080")?;
 
     let test = if pwrite { "pWriteTest" } else { "WriteTest" };
 
     let filename = format!("{}{}", test, ".txt");
     let fd = client
-        .grpc_open_uds(&filename, O_CREAT | O_RDWR, S_IRWXU)
-        .await?;
+        .grpc_open(&filename, O_CREAT | O_RDWR, S_IRWXU)
+        .unwrap();
     assert!(fd != -1, "{}: Open Failed", test);
 
     let page = "WriteTest".as_bytes();
     let result = if pwrite {
         client
-            .grpc_pwrite_uds(fd, &page.to_vec(), page.len(), 0)
-            .await?
+            .grpc_pwrite(fd, &page.to_vec(), page.len(), 0)
+            .unwrap()
     } else {
-        client.grpc_write_uds(fd, &page.to_vec(), page.len()).await?
+        client.grpc_write(fd, &page.to_vec(), page.len()).unwrap()
     };
 
     // Length of test in files/read_test.txt
     assert!(result != -1, "{}: Write Failed", test);
 
-    let result = client.grpc_fsync_uds(fd).await?;
+    let result = client.grpc_fsync(fd).unwrap();
     assert!(result != -1, "{}: Fsync Failed", test);
 
-    let result = client.grpc_close_uds(fd).await?;
+    let result = client.grpc_close(fd).unwrap();
     assert!(result != -1, "{}: Close Failed", test);
 
-    let result = client.grpc_remove_uds(&filename).await?;
+    let result = client.grpc_remove(&filename).unwrap();
     assert!(result != -1, "{}: Remove Failed", test);
 
     Ok(())
@@ -98,22 +96,22 @@ fn pwrite_test() -> Result<(), Box<dyn std::error::Error>> {
     write_test_base(true)
 }
 
-#[tokio::main]
-async fn write_read_test_async() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = BlockingClient::connect_uds().await?;
+#[test]
+fn write_read_test() -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = BlockingClient::connect_tcp("http://[::1]:8080")?;
 
     let filename = "write_read_test.txt";
     let fd = client
-        .grpc_open_uds(filename, O_CREAT | O_RDWR, S_IRWXU)
-        .await?;
+        .grpc_open(filename, O_CREAT | O_RDWR, S_IRWXU)
+        .unwrap();
     assert!(fd != -1, "WriteReadTest: Open Failed");
 
     let page = "WriteReadTest".as_bytes();
-    let result = client.grpc_write_uds(fd, &page.to_vec(), page.len()).await?;
+    let result = client.grpc_write(fd, &page.to_vec(), page.len()).unwrap();
     assert!(result != -1, "WriteReadTest: Write Failed");
 
     let mut page: Vec<u8> = vec![0; PAGE_SIZE];
-    let result = client.grpc_pread_uds(fd, &mut page, PAGE_SIZE, 0).await?;
+    let result = client.grpc_pread(fd, &mut page, PAGE_SIZE, 0).unwrap();
     assert!(result != -1, "WriteReadTest: Read Failed");
 
     let binding = String::from_utf8(page).unwrap();
@@ -124,38 +122,28 @@ async fn write_read_test_async() -> Result<(), Box<dyn std::error::Error>> {
         page_str
     );
 
-    let result = client.grpc_fsync_uds(fd).await?;
+    let result = client.grpc_fsync(fd).unwrap();
     assert!(result != -1, "WriteReadTest: Fsync Failed");
 
-    let result = client.grpc_close_uds(fd).await?;
+    let result = client.grpc_close(fd).unwrap();
     assert!(result != -1, "WriteReadTest: Close Failed");
 
-    let result = client.grpc_remove_uds(filename).await?;
+    let result = client.grpc_remove(filename).unwrap();
     assert!(result != -1, "WriteReadTest: Remove Failed");
 
     Ok(())
 }
 
 #[test]
-fn write_read_test() -> Result<(), Box<dyn std::error::Error>> {
-    write_read_test_async()
-}
-
-#[tokio::main]
-async fn dir_test_async() -> Result<(), Box<dyn std::error::Error>> {
-    let mut client = BlockingClient::connect_uds().await?;
+fn dir_test() -> Result<(), Box<dyn std::error::Error>> {
+    let mut client = BlockingClient::connect_tcp("http://[::1]:8080")?;
 
     let dirname = "dirTest";
-    let res = client.grpc_mkdir_uds(dirname, S_IRWXU).await?;
+    let res = client.grpc_mkdir(dirname, S_IRWXU).unwrap();
     assert!(res != 1, "DirTest: Mkdir Failed");
 
-    let res = client.grpc_rmdir_uds(dirname).await?;
+    let res = client.grpc_rmdir(dirname).unwrap();
     assert!(res != -1, "DirTest: Rmdir Failed");
 
     Ok(())
-}
-
-#[test]
-fn dir_test() -> Result<(), Box<dyn std::error::Error>> {
-    dir_test_async()
 }
