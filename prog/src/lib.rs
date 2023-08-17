@@ -25,7 +25,7 @@ type Result<T, E = StdError> = ::std::result::Result<T, E>;
 
 // File system path
 pub const FS_PATH: &str = "/dev/shm/";
-pub const UDS_PATH: &str = "/tmp/tonic/fxmark_grpc";
+pub const UDS_PATH: &str = "/dev/shm/uds";
 
 #[derive(Clone, Copy)]
 pub enum LogMode {
