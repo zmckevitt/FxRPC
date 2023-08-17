@@ -160,7 +160,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     assert!(r.is_ok());
                 }
                 LogMode::STDOUT => {
-                    print!("{}", row);
+                    if mode != "uds_client" {
+                        print!("{}", row);
+                    }
                 }
             }
 

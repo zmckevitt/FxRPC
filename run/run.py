@@ -51,7 +51,8 @@ NETWORK_INFRA_IP = '172.31.0.20/24'
 #
 parser = argparse.ArgumentParser()
 
-parser.add_argument("-i", "--image", required=True, help="Specify disk image to use")
+parser.add_argument("-t", "--transport", required=True, help="Specify transport method")
+parser.add_argument("-i", "--image", required=False, help="Specify disk image to use")
 parser.add_argument("-s", "--scores", type=int, required=True, default=1, help="Cores for server")
 parser.add_argument("-nc", "--clients", type=int, required=True, default=1, help="Setup n clients")
 parser.add_argument("-c", "--ccores", type=int, required=True, default=1, help="Cores per client")
@@ -126,7 +127,7 @@ def query_host_numa():
     # Now return the intersection of the two
     return list(sorted(set(mem_nodes).intersection(set(cpu_nodes))))
 
-def start_server(args, node, affinity):
+def start_server_tcp(args, node, affinity):
     host_numa_nodes_list = query_host_numa()
     num_host_numa_nodes = len(host_numa_nodes_list)
     host_nodes = 0 if num_host_numa_nodes == 0 else host_numa_nodes_list[(node+args.offset) % num_host_numa_nodes]
@@ -176,7 +177,7 @@ def start_server(args, node, affinity):
     child.expect("Starting server on port 8080")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
-def start_client(cid, args, node, affinity):
+def start_client_tcp(cid, args, node, affinity):
     host_numa_nodes_list = query_host_numa()
     num_host_numa_nodes = len(host_numa_nodes_list)
     host_nodes = 0 if num_host_numa_nodes == 0 else host_numa_nodes_list[(node+args.offset) % num_host_numa_nodes]
@@ -237,10 +238,37 @@ def start_client(cid, args, node, affinity):
     f.write(output.decode().replace('\r', ''))
     f.close()
 
+def start_server_uds():
+    cmd = "../prog/target/release/fxmark_grpc --mode uds_server"
+    print("Invoking UDS server with command: ", cmd)
+
+    child = pexpect.run(cmd)
+
+def start_client_uds(cid, args):
+    wratios = ""
+    for ratio in args.wratio:
+        wratios += ratio + " "
+    openfs = ""
+    for f in args.openf:
+        openfs += f + " "
+    cmd = "../prog/target/release/fxmark_grpc --mode uds_client --wratio " + wratios + "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
+    print("Invoking UDS client with command: ", cmd)
+
+    child = pexpect.run(cmd)
+
+    output = child
+
+    f = open(args.csv, "a")
+    f.write(output.decode().replace('\r', ''))
+    f.close()
+
 def qemu_run(args, affinity, nodes):
     s_pid = os.fork()
     if s_pid == 0:
-        start_server(args, 0, affinity[0])
+        if(args.transport == "tcp"):
+            start_server_tcp(args, 0, affinity[0])
+        if(args.transport == "uds"):
+            start_server_uds()
     else:
         print("Spawning server with pid: " + str(s_pid))
         sleep(5)
@@ -248,8 +276,12 @@ def qemu_run(args, affinity, nodes):
         for i in range(0, args.clients):
             c_pid = os.fork()
             if(c_pid == 0):
-                start_client(i+1, args, nodes[i+1], affinity[i+1])
-                sys.exit()
+                if(args.transport == "tcp"):
+                    start_client_tcp(i+1, args, nodes[i+1], affinity[i+1])
+                    sys.exit()
+                if(args.transport == "uds"):
+                    start_client_uds(i+1, args)
+                    sys.exit() 
             else:
                 print("Spawning child with pid: " + str(c_pid))
                 children.append(c_pid)
@@ -333,37 +365,39 @@ if __name__ == '__main__':
     "Execution pipeline for building and launching Fxmark gRPC"
     args = parser.parse_args()
 
-    # Setup network
-    if not ('no_network_setup' in args and args.no_network_setup):
-        configure_network(args)
-
-    if 'network_only' in args and args.network_only:
-        sys.exit(0)
-
     # print(NETWORK_CONFIG)
+    if args.transport == "tcp":
+        # Setup network
+        if not ('no_network_setup' in args and args.no_network_setup):
+            configure_network(args)
 
-    user = whoami().strip()
-    kvm_members = getent['group', 'kvm']().strip().split(":")[-1].split(',')
-    if not user in kvm_members and not args.norun:
-        print("Your user ({}) is not in the kvm group.".format(user))
-        print("Add yourself to the group with `sudo adduser {} kvm`".format(user))
-        print("You'll likely have to restart for changes to take effect,")
-        print("or run `sudo chmod +666 /dev/kvm` if you don't care about")
-        print("kvm access restriction on the machine.")
-        sys.exit(errno.EACCES)
+        if 'network_only' in args and args.network_only:
+            sys.exit(0)
 
-    try:
-        from plumbum.cmd import sudo
-        r = sudo['-n']['true']()
-    except ProcessExecutionError as e:
-        if e.retcode == 1:
-            print("`sudo` is asking for a password, but for testing to work, `sudo` should not prompt for a password.")
-            print("Add the line `{} ALL=(ALL) NOPASSWD: ALL` with the `sudo visudo` command to fix this.".format(user))
-            sys.exit(errno.EINVAL)
-        else:
-            raise e
-    affinity,nodes = get_numa_mapping(args)
-    print("Detected affinity: ", affinity)
-    setup(args)
-    qemu_run(args, affinity, nodes)
-    cleanup()
+        user = whoami().strip()
+        kvm_members = getent['group', 'kvm']().strip().split(":")[-1].split(',')
+        if not user in kvm_members and not args.norun:
+            print("Your user ({}) is not in the kvm group.".format(user))
+            print("Add yourself to the group with `sudo adduser {} kvm`".format(user))
+            print("You'll likely have to restart for changes to take effect,")
+            print("or run `sudo chmod +666 /dev/kvm` if you don't care about")
+            print("kvm access restriction on the machine.")
+            sys.exit(errno.EACCES)
+
+        try:
+            from plumbum.cmd import sudo
+            r = sudo['-n']['true']()
+        except ProcessExecutionError as e:
+            if e.retcode == 1:
+                print("`sudo` is asking for a password, but for testing to work, `sudo` should not prompt for a password.")
+                print("Add the line `{} ALL=(ALL) NOPASSWD: ALL` with the `sudo visudo` command to fix this.".format(user))
+                sys.exit(errno.EINVAL)
+            else:
+                raise e
+        affinity,nodes = get_numa_mapping(args)
+        print("Detected affinity: ", affinity)
+        setup(args)
+        qemu_run(args, affinity, nodes)
+        cleanup()
+    if args.transport == "uds":
+        qemu_run(args, [], [])

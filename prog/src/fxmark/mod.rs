@@ -35,7 +35,7 @@ const PAGE_SIZE: usize = 1008;
 
 static POOR_MANS_BARRIER: AtomicUsize = AtomicUsize::new(0);
 
-pub const OUTPUT_FILE: &str = "fxmark_grpc_benchmark.csv";
+pub const OUTPUT_FILE: &str = "fxmark_grpc_benchmarks.csv";
 
 lazy_static! {
     pub static ref MAX_OPEN_FILES: AtomicUsize = AtomicUsize::new(max_open_files());

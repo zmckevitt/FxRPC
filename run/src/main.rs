@@ -18,9 +18,16 @@ fn main() {
         .version(crate_version!())
         .about("Runner for Fxmark gRPC benchmarks")
         .arg(
+            Arg::with_name("transport")
+                .long("transport")
+                .required(true)
+                .help("TCP or UDS")
+                .takes_value(true),
+        )
+        .arg(
             Arg::with_name("image")
                 .long("image")
-                .required(true)
+                .required(false)
                 .help("Path to disk image")
                 .takes_value(true),
         )
@@ -57,7 +64,7 @@ fn main() {
         )
         .get_matches_from(args);
 
-    let image = value_t!(matches, "image", String).unwrap_or_else(|e| e.exit());
+    let transport = value_t!(matches, "transport", String).unwrap_or_else(|e| e.exit());
     let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();
     let openfs: Vec<&str> = matches.values_of("openf").unwrap().collect();
     let duration = value_t!(matches, "duration", String).unwrap_or_else(|e| e.exit());
@@ -107,31 +114,63 @@ fn main() {
 
         let scores = format!("{}", num_clients + 1);
 
-        let output = Command::new("python3")
-            .arg("run.py")
-            .arg("--image")
-            .arg(image.clone())
-            .arg("--scores")
-            .arg(scores.clone())
-            .arg("--clients")
-            .arg(format!("{}", num_clients))
-            .arg("--ccores")
-            .arg(format!("{}", cores_per_client))
-            .arg("--wratio")
-            .arg(wr_joined.clone())
-            .arg("--openf")
-            .arg(of_joined.clone())
-            .arg("--duration")
-            .arg(duration.clone())
-            .arg("--csv")
-            .arg(csv.clone())
-            .arg("--memory")
-            .arg(format!("{}", mem_fn(total_cores) / (num_clients + 1)))
-            .output()
-            .expect("failed to execute process");
+        // Use python runner to perform emulation
+        if transport == "TCP" { 
+            let image = value_t!(matches, "image", String).unwrap_or_else(|e| e.exit());
+            let output = Command::new("python3")
+                .arg("run.py")
+                .arg("--transport")
+                .arg("tcp")
+                .arg("--image")
+                .arg(image.clone())
+                .arg("--scores")
+                .arg(scores.clone())
+                .arg("--clients")
+                .arg(format!("{}", num_clients))
+                .arg("--ccores")
+                .arg(format!("{}", cores_per_client))
+                .arg("--wratio")
+                .arg(wr_joined.clone())
+                .arg("--openf")
+                .arg(of_joined.clone())
+                .arg("--duration")
+                .arg(duration.clone())
+                .arg("--csv")
+                .arg(csv.clone())
+                .arg("--memory")
+                .arg(format!("{}", mem_fn(total_cores) / (num_clients + 1)))
+                .output()
+                .expect("failed to execute process");
 
-        println!("Status: {}", output.status);
-        println!("Stdout: {}", String::from_utf8_lossy(&output.stdout));
+            println!("Status: {}", output.status);
+            println!("Stdout: {}", String::from_utf8_lossy(&output.stdout));
+        }
+        // Unix Domain Socket
+        else {
+            let output = Command::new("python3")
+                .arg("run.py")
+                .arg("--transport")
+                .arg("uds")
+                .arg("--scores")
+                .arg(scores.clone())
+                .arg("--clients")
+                .arg(format!("{}", num_clients))
+                .arg("--ccores")
+                .arg(format!("{}", cores_per_client))
+                .arg("--wratio")
+                .arg(wr_joined.clone())
+                .arg("--openf")
+                .arg(of_joined.clone())
+                .arg("--duration")
+                .arg(duration.clone())
+                .arg("--csv")
+                .arg(csv.clone())
+                .output()
+                .expect("failed to execute process");
+            println!("Status: {}", output.status);
+            println!("Stdout: {}", String::from_utf8_lossy(&output.stdout));
+
+        }
 
         if total_cores == 1 {
             total_cores = 0;
