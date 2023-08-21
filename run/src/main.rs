@@ -21,8 +21,9 @@ fn main() {
             Arg::with_name("transport")
                 .long("transport")
                 .required(true)
-                .help("TCP or UDS")
-                .takes_value(true),
+                .help("tcp or uds")
+                .takes_value(true)
+                .possible_values(&["tcp", "uds"]),
         )
         .arg(
             Arg::with_name("image")

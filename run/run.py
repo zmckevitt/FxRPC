@@ -290,6 +290,9 @@ def qemu_run(args, affinity, nodes):
         n = len(children)
         while(n > 0):
             pid = os.wait()
+            if(pid == s_pid):
+                print("Unexpected server failure! Exiting...")
+                sys.exit(1)
             print("Child with pid " + str(pid) + " has finished.")
             n -= 1
 
