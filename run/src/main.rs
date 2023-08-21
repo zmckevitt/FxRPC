@@ -115,7 +115,7 @@ fn main() {
         let scores = format!("{}", num_clients + 1);
 
         // Use python runner to perform emulation
-        if transport == "TCP" { 
+        if transport == "tcp" { 
             let image = value_t!(matches, "image", String).unwrap_or_else(|e| e.exit());
             let output = Command::new("python3")
                 .arg("run.py")
