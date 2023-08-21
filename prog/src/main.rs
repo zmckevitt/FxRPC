@@ -114,13 +114,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let duration = value_t!(matches, "duration", u64).unwrap_or_else(|e| e.exit());
 
-            let cid = if mode == "emu_client" {
+            let cid = if mode != "loc_client" {
                 value_t!(matches, "cid", usize).unwrap_or_else(|e| e.exit())
             } else {
                 0
             };
 
-            let nclients = if mode == "emu_client" {
+            let nclients = if mode != "loc_client" {
                 value_t!(matches, "nclients", usize).unwrap_or_else(|e| e.exit())
             } else {
                 1
