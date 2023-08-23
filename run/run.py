@@ -242,7 +242,7 @@ def start_server_uds():
     cmd = "../prog/target/release/fxmark_grpc --mode uds_server"
     print("Invoking UDS server with command: ", cmd)
 
-    child = pexpect.run(cmd)
+    child = pexpect.run(cmd, timeout=EXP_TIMEOUT)
 
 def start_client_uds(cid, args):
     wratios = ""
@@ -254,7 +254,7 @@ def start_client_uds(cid, args):
     cmd = "../prog/target/release/fxmark_grpc --mode uds_client --wratio " + wratios + "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
     print("Invoking UDS client with command: ", cmd)
 
-    child = pexpect.run(cmd)
+    child = pexpect.run(cmd, timeout=EXP_TIMEOUT)
 
     output = child
 
