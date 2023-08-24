@@ -10,15 +10,15 @@ use syscalls::{
     CloseRequest, DirRequest, FstatRequest, FstatResponse, FsyncRequest, OpenRequest, ReadRequest,
     RemoveRequest, SyscallResponse, WriteRequest,
 };
+use tokio::net::{UnixListener, UnixStream};
 use tokio::runtime::Builder;
 use tokio::runtime::Runtime;
-use tokio::net::{UnixListener, UnixStream};
 use tokio_stream::wrappers::UnixListenerStream;
-use tonic::{transport::Server, Request, Response, Status, transport::Endpoint, transport::Uri};
+use tonic::{transport::Endpoint, transport::Server, transport::Uri, Request, Response, Status};
 use tower::service_fn;
 
-use std::path::Path;
 use std::os::unix::net::UnixListener as StdUnixListener;
+use std::path::Path;
 
 type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 type Result<T, E = StdError> = ::std::result::Result<T, E>;
@@ -61,16 +61,19 @@ impl BlockingClient {
         let rt = Builder::new_multi_thread().enable_all().build().unwrap();
         let client = rt.block_on(SyscallClient::connect(dst))?;
 
-        Ok(Self { client, rt: Some(rt) })
+        Ok(Self {
+            client,
+            rt: Some(rt),
+        })
     }
-    
-    pub fn connect_uds() -> Result<Self, tonic::transport::Error>
-    {
+
+    pub fn connect_uds() -> Result<Self, tonic::transport::Error> {
         async fn connect_uds_async() -> tonic::transport::Channel {
-            Endpoint::try_from("http://[::]:8080").unwrap()
-                .connect_with_connector(service_fn(|_: Uri| {
-                    UnixStream::connect(UDS_PATH)
-                })).await.unwrap()
+            Endpoint::try_from("http://[::]:8080")
+                .unwrap()
+                .connect_with_connector(service_fn(|_: Uri| UnixStream::connect(UDS_PATH)))
+                .await
+                .unwrap()
         }
 
         let rt = tokio::runtime::Builder::new_multi_thread()
@@ -80,7 +83,10 @@ impl BlockingClient {
         let channel = rt.block_on(connect_uds_async());
         let client = SyscallClient::new(channel);
 
-        Ok(Self { client, rt: Some(rt) })
+        Ok(Self {
+            client,
+            rt: Some(rt),
+        })
     }
 
     pub fn grpc_open(
@@ -94,7 +100,12 @@ impl BlockingClient {
             flags: flags,
             mode: mode,
         });
-        let response = self.rt.as_ref().unwrap().block_on(self.client.open(request))?.into_inner();
+        let response = self
+            .rt
+            .as_ref()
+            .unwrap()
+            .block_on(self.client.open(request))?
+            .into_inner();
         Ok(response.result)
     }
 
@@ -113,7 +124,12 @@ impl BlockingClient {
             offset: offset,
         });
 
-        let response = self.rt.as_ref().unwrap().block_on(self.client.read(request))?.into_inner();
+        let response = self
+            .rt
+            .as_ref()
+            .unwrap()
+            .block_on(self.client.read(request))?
+            .into_inner();
         *page = response.page;
         Ok(response.result)
     }
@@ -153,7 +169,12 @@ impl BlockingClient {
             offset: offset,
         });
 
-        let response = self.rt.as_ref().unwrap().block_on(self.client.write(request))?.into_inner();
+        let response = self
+            .rt
+            .as_ref()
+            .unwrap()
+            .block_on(self.client.write(request))?
+            .into_inner();
         Ok(response.result)
     }
 
@@ -179,7 +200,12 @@ impl BlockingClient {
     pub fn grpc_close(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(CloseRequest { fd: fd });
 
-        let response = self.rt.as_ref().unwrap().block_on(self.client.close(request))?.into_inner();
+        let response = self
+            .rt
+            .as_ref()
+            .unwrap()
+            .block_on(self.client.close(request))?
+            .into_inner();
         Ok(response.result)
     }
 
@@ -187,14 +213,24 @@ impl BlockingClient {
         let request = tonic::Request::new(RemoveRequest {
             path: path.to_string(),
         });
-        let response = self.rt.as_ref().unwrap().block_on(self.client.remove(request))?.into_inner();
+        let response = self
+            .rt
+            .as_ref()
+            .unwrap()
+            .block_on(self.client.remove(request))?
+            .into_inner();
         Ok(response.result)
     }
 
     pub fn grpc_fsync(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(FsyncRequest { fd: fd });
 
-        let response = self.rt.as_ref().unwrap().block_on(self.client.fsync(request))?.into_inner();
+        let response = self
+            .rt
+            .as_ref()
+            .unwrap()
+            .block_on(self.client.fsync(request))?
+            .into_inner();
         Ok(response.result)
     }
 
@@ -203,7 +239,12 @@ impl BlockingClient {
             path: path.to_string(),
             mode: mode,
         });
-        let response = self.rt.as_ref().unwrap().block_on(self.client.mkdir(request))?.into_inner();
+        let response = self
+            .rt
+            .as_ref()
+            .unwrap()
+            .block_on(self.client.mkdir(request))?
+            .into_inner();
         Ok(response.result)
     }
 
@@ -212,14 +253,24 @@ impl BlockingClient {
             path: path.to_string(),
             mode: 0,
         });
-        let response = self.rt.as_ref().unwrap().block_on(self.client.rmdir(request))?.into_inner();
+        let response = self
+            .rt
+            .as_ref()
+            .unwrap()
+            .block_on(self.client.rmdir(request))?
+            .into_inner();
         Ok(response.result)
     }
 
     pub fn grpc_fstat_size(&mut self, fd: i32) -> Result<i64, Box<dyn std::error::Error>> {
         let request = tonic::Request::new(FstatRequest { fd: fd });
 
-        let response = self.rt.as_ref().unwrap().block_on(self.client.fstat(request))?.into_inner();
+        let response = self
+            .rt
+            .as_ref()
+            .unwrap()
+            .block_on(self.client.fstat(request))?
+            .into_inner();
         Ok(response.size)
     }
 }
@@ -460,7 +511,6 @@ pub fn start_rpc_server_tcp(bind_addr: &str, port: u64) {
 
 #[tokio::main]
 pub async fn start_rpc_server_uds(path: &str) -> Result<(), Box<dyn std::error::Error>> {
-
     println!("Starting server on UDS path: {}", path);
 
     // Remove existing UDS dir

@@ -27,7 +27,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .required(true)
                 .help("loc_client, emu_client, uds_client, loc_server, emu_server, or uds_server")
                 .takes_value(true)
-                .possible_values(&["loc_client", "emu_client", "uds_client", "loc_server", "emu_server", "uds_server"]),
+                .possible_values(&[
+                    "loc_client",
+                    "emu_client",
+                    "uds_client",
+                    "loc_server",
+                    "emu_server",
+                    "uds_server",
+                ]),
         )
         .arg(
             Arg::with_name("port")
@@ -100,7 +107,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             start_rpc_server_tcp(bind_addr, port)
         }
-        "loc_client" | "emu_client"  | "uds_client" => {
+        "loc_client" | "emu_client" | "uds_client" => {
             let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();
             let wratios: Vec<usize> = wratios
                 .into_iter()
@@ -172,11 +179,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 "http://172.31.0.1:8080"
             };
 
-            let client = if mode != "uds_client" { 
+            let client = if mode != "uds_client" {
                 Arc::new(Mutex::new(BlockingClient::connect_tcp(host_addr).unwrap()))
             } else {
                 Arc::new(Mutex::new(BlockingClient::connect_uds().unwrap()))
-
             };
             for of in openfs {
                 for wr in &wratios {

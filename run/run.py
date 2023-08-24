@@ -6,18 +6,10 @@
 import argparse
 import os
 import sys
-import pathlib
-import shutil
-import subprocess
-import prctl
 import signal
-import toml
 import pexpect
-import plumbum
-import re
 import errno
 from time import sleep
-import tempfile
 from numa import info
 
 from plumbum import colors, local, SshMachine
@@ -51,17 +43,28 @@ NETWORK_INFRA_IP = '172.31.0.20/24'
 #
 parser = argparse.ArgumentParser()
 
-parser.add_argument("-t", "--transport", required=True, help="Specify transport method")
-parser.add_argument("-i", "--image", required=False, help="Specify disk image to use")
-parser.add_argument("-s", "--scores", type=int, required=True, default=1, help="Cores for server")
-parser.add_argument("-nc", "--clients", type=int, required=True, default=1, help="Setup n clients")
-parser.add_argument("-c", "--ccores", type=int, required=True, default=1, help="Cores per client")
-parser.add_argument("-w", "--wratio", nargs="+", required=True, help="Specify write ratio for mix benchmarks")
-parser.add_argument("-o", "--openf", nargs="+", required=True, help="Specify number of open files for mix benchmarks")
-parser.add_argument("-d", "--duration", type=int, required=True, default=10, help="Experiment duration")
-parser.add_argument("-f", "--csv", type=str, required=False, default="fxmark_grpc_benchmarks.csv", help="CSV file")
-parser.add_argument("-n", "--offset", type=int, required=False, default=0, help="Offset for numa host")
-parser.add_argument("-m", "--memory", type=int, required=False, default=1024, help="Amount of memory to give to each instance")
+parser.add_argument("-t", "--transport", required=True, 
+                    help="Specify transport method")
+parser.add_argument("-i", "--image", required=False, 
+                    help="Specify disk image to use")
+parser.add_argument("-s", "--scores", type=int, required=True, default=1, 
+                    help="Cores for server")
+parser.add_argument("-nc", "--clients", type=int, required=True, default=1, 
+                    help="Setup n clients")
+parser.add_argument("-c", "--ccores", type=int, required=True, default=1, 
+                    help="Cores per client")
+parser.add_argument("-w", "--wratio", nargs="+", required=True, 
+                    help="Specify write ratio for mix benchmarks")
+parser.add_argument("-o", "--openf", nargs="+", required=True, 
+                    help="Specify number of open files for mix benchmarks")
+parser.add_argument("-d", "--duration", type=int, required=True, default=10, 
+                    help="Experiment duration")
+parser.add_argument("-f", "--csv", type=str, required=False, default="fxmark_grpc_benchmarks.csv", 
+                    help="CSV file")
+parser.add_argument("-n", "--offset", type=int, required=False, default=0, 
+                    help="Offset for numa host")
+parser.add_argument("-m", "--memory", type=int, required=False, default=1024, 
+                    help="Amount of memory to give to each instance")
 
 subparser = parser.add_subparsers(help='Advanced network configuration')
 
@@ -130,19 +133,22 @@ def query_host_numa():
 def start_server_tcp(args, node, affinity):
     host_numa_nodes_list = query_host_numa()
     num_host_numa_nodes = len(host_numa_nodes_list)
-    host_nodes = 0 if num_host_numa_nodes == 0 else host_numa_nodes_list[(node+args.offset) % num_host_numa_nodes]
+    host_nodes = 0 if num_host_numa_nodes == 0 else \
+        host_numa_nodes_list[(node+args.offset) % num_host_numa_nodes]
     cmd = "/usr/bin/env qemu-system-x86_64 /tmp/disk.img" \
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap0" \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d0" \
         + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase" \
         + " -name server,debug-threads=on" \
-        + " -object memory-backend-memfd,id=nmem0,merge=off,dump=on,prealloc=off,size=" + str(args.memory) + "M" \
+        + " -object memory-backend-memfd,id=nmem0,merge=off,dump=on,prealloc=off,size=" \
+            + str(args.memory) + "M" \
         + ",host-nodes=" + str(host_nodes) \
         + ",policy=bind,hugetlb=on,hugetlbsize=2M,share=on" \
         + " -numa node,memdev=nmem0,nodeid=0" \
         + " -numa cpu,node-id=0,socket-id=0" \
-        + " -smp " + str(args.scores) + ",sockets=1,maxcpus=" + str(args.scores) + " -m " + str(args.memory) + "M"
+        + " -smp " + str(args.scores) + ",sockets=1,maxcpus=" + str(args.scores) + \
+            " -m " + str(args.memory) + "M"
         # + " -m 1024 -smp " + str(args.scores) \
 
     print("Invoking QEMU server with command: ", cmd)
@@ -168,27 +174,36 @@ def start_server_tcp(args, node, affinity):
     child.expect("root@jammy:~# ", timeout=BOOT_TIMEOUT)
 
     # bring up ip address
-    child.sendline("ip addr add 172.31.0.1/24 broadcast 172.31.0.255 dev ens3")
+    cmd = "ip addr add 172.31.0.1/24 broadcast 172.31.0.255 dev ens3"
+    print("Setup IP in server emulated environment: " + cmd)
+    child.sendline(cmd)
     child.expect("root@jammy:~# ")
-    child.sendline("ip link set ens3 up")
+    cmd = "ip link set ens3 up"
+    print("Setup IP in server emulated environment: " + cmd)
+    child.sendline(cmd)
     child.expect("root@jammy:~# ")
 
-    child.sendline("./fxmark_grpc --mode emu_server --port 8080")
+    cmd = "./fxmark_grpc --mode emu_server --port 8080"
+    print("Invoking TCP server in emulated environment with command: ", cmd)
+    child.sendline(cmd)
     child.expect("Starting server on port 8080")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
 def start_client_tcp(cid, args, node, affinity):
     host_numa_nodes_list = query_host_numa()
     num_host_numa_nodes = len(host_numa_nodes_list)
-    host_nodes = 0 if num_host_numa_nodes == 0 else host_numa_nodes_list[(node+args.offset) % num_host_numa_nodes]
+    host_nodes = 0 if num_host_numa_nodes == 0 else \
+        host_numa_nodes_list[(node+args.offset) % num_host_numa_nodes]
     cmd = "/usr/bin/env qemu-system-x86_64 /tmp/disk" + str(cid) + ".img" \
         + " -enable-kvm -nographic" \
         + " -netdev tap,id=nd0,script=no,ifname=tap" + str(cid*2) \
         + " -device e1000,netdev=nd0,mac=56:b4:44:e9:62:d" + str(cid) \
         + " -cpu host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase" \
         + " -name client" + str(cid) + ",debug-threads=on" \
-        + " -smp " + str(args.ccores) + ",sockets=1,maxcpus=" + str(args.ccores) + " -m " + str(args.memory) + "M" \
-        + " -object memory-backend-memfd,id=nmem0,merge=off,dump=on,prealloc=off,size=" + str(args.memory) + "M" \
+        + " -smp " + str(args.ccores) + ",sockets=1,maxcpus=" + str(args.ccores) \
+            + " -m " + str(args.memory) + "M" \
+        + " -object memory-backend-memfd,id=nmem0,merge=off,dump=on,prealloc=off,size=" \
+              + str(args.memory) + "M" \
         + ",host-nodes=" + str(host_nodes) \
         + ",policy=bind,hugetlb=on,hugetlbsize=2M,share=on" \
         + " -numa node,memdev=nmem0,nodeid=0" \
@@ -217,9 +232,13 @@ def start_client_tcp(cid, args, node, affinity):
     child.expect("root@jammy:~# ", timeout=BOOT_TIMEOUT)
 
     # bring up ip address
-    child.sendline("ip addr add 172.31.0." + str(cid*2) + "/24 broadcast 172.31.0.255 dev ens3")
+    cmd = "ip addr add 172.31.0." + str(cid*2) + "/24 broadcast 172.31.0.255 dev ens3"
+    print("Setting up network on client: " + cmd)
+    child.sendline(cmd)
     child.expect("root@jammy:~# ")
-    child.sendline("ip link set ens3 up")
+    cmd = "ip link set ens3 up"
+    print("Setting up network on client: " + cmd)
+    child.sendline(cmd)
     child.expect("root@jammy:~# ")
   
     wratios = ""
@@ -229,8 +248,13 @@ def start_client_tcp(cid, args, node, affinity):
     for f in args.openf:
         openfs += f + " "
  
-    child.sendline("./fxmark_grpc --mode emu_client --wratio " + wratios + "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + " --nclients " + str(args.clients) + " --ccores " + str(args.ccores))
-    child.expect_exact("thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients")
+    cmd = "./fxmark_grpc --mode emu_client --wratio " + wratios + "--openf " + openfs + \
+        "--duration " + str(args.duration) + " --cid " + str(cid-1) + \
+        " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
+    print("Invoking TCP client in emulated environment with command: " + cmd)
+    child.sendline(cmd)
+    child.expect_exact("thread_id,benchmark,ncores,write_ratio,open_files,duration_total," \
+                       "duration,operations,client_id,client_cores,nclients")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
     output = child.before
@@ -251,7 +275,9 @@ def start_client_uds(cid, args):
     openfs = ""
     for f in args.openf:
         openfs += f + " "
-    cmd = "../prog/target/release/fxmark_grpc --mode uds_client --wratio " + wratios + "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
+    cmd = "../prog/target/release/fxmark_grpc --mode uds_client --wratio " + wratios + \
+        "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + \
+        " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
     print("Invoking UDS client with command: ", cmd)
 
     child = pexpect.run(cmd, timeout=EXP_TIMEOUT)
@@ -303,9 +329,11 @@ def setup(args):
     abs_path = os.path.abspath(args.image)
     # create image for server
     cmd = "qemu-img create -f qcow2 -b " + abs_path + " -F qcow2 /tmp/disk.img"
+    print("Configuring qemu image with: " + cmd)
     os.system(cmd)
     for i in range(0, args.clients):
         cmd = "qemu-img create -f qcow2 -b " + abs_path + " -F qcow2 /tmp/disk" + str(i + 1) + ".img"
+        print("Configuring qemu image with: " + cmd)
         os.system(cmd)
 
 def cleanup():
@@ -367,6 +395,7 @@ def get_numa_mapping(args):
 if __name__ == '__main__':
     "Execution pipeline for building and launching Fxmark gRPC"
     args = parser.parse_args()
+    print("Invoking run.py with command: " + " ".join(sys.argv))
 
     # print(NETWORK_CONFIG)
     if args.transport == "tcp":
@@ -392,8 +421,10 @@ if __name__ == '__main__':
             r = sudo['-n']['true']()
         except ProcessExecutionError as e:
             if e.retcode == 1:
-                print("`sudo` is asking for a password, but for testing to work, `sudo` should not prompt for a password.")
-                print("Add the line `{} ALL=(ALL) NOPASSWD: ALL` with the `sudo visudo` command to fix this.".format(user))
+                print("`sudo` is asking for a password, but for testing to work, `sudo` " \
+                      "should not prompt for a password.")
+                print("Add the line `{} ALL=(ALL) NOPASSWD: ALL` with the `sudo visudo` " \
+                      "command to fix this.".format(user))
                 sys.exit(errno.EINVAL)
             else:
                 raise e
