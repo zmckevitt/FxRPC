@@ -263,7 +263,7 @@ def start_client_tcp(cid, args, node, affinity):
     f.close()
 
 def start_server_uds():
-    cmd = "../prog/target/release/fxmark_grpc --mode uds_server"
+    cmd = "numactl --membind=0 --cpunodebind=0 ../prog/target/release/fxmark_grpc --mode uds_server"
     print("Invoking UDS server with command: ", cmd)
 
     child = pexpect.run(cmd, timeout=EXP_TIMEOUT)
@@ -275,10 +275,12 @@ def start_client_uds(cid, args):
     openfs = ""
     for f in args.openf:
         openfs += f + " "
-    cmd = "../prog/target/release/fxmark_grpc --mode uds_client --wratio " + wratios + \
+    cmd = "numactl --membind=" + str(cid) + " --cpunodebind=" + str(cid) + \
+        " ../prog/target/release/fxmark_grpc --mode uds_client --wratio " + wratios + \
         "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + \
         " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
     print("Invoking UDS client with command: ", cmd)
+    sys.stdout.flush()
 
     child = pexpect.run(cmd, timeout=EXP_TIMEOUT)
 
