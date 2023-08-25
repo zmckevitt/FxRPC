@@ -76,6 +76,37 @@ cargo test
 
 ## Benchmarking Fxmark gRPC
 
+### Huge Page Configuration
+
+Before running any benchmarks, it's necessary to setup up huge pages.
+First, you'll want to ensure the default huge page size by running:
+```bash
+cat /proc/meminfo | grep -i hugepage
+```
+You want to see:
+```
+Hugepagesize:       2048 kB
+```
+
+Next, you can see what pages are preallocated with:
+```bash
+numastat -m
+```
+
+Generally, 32768.00 MB (or 16384 2 MB pages) per node is more than enough (assuming no more than 24 cores per node).
+Run as many of the following commands as you have numa nodes to preallocate the pages:
+
+```bash
+echo 16384 | sudo numactl -m 0 tee -a /proc/sys/vm/nr_hugepages_mempolicy
+echo 32768 | sudo numactl -m 1 tee -a /proc/sys/vm/nr_hugepages_mempolicy
+echo 49152 | sudo numactl -m 2 tee -a /proc/sys/vm/nr_hugepages_mempolicy
+echo 65536 | sudo numactl -m 3 tee -a /proc/sys/vm/nr_hugepages_mempolicy
+```
+
+Rerun ```numastat -m``` to verify the pages are preallocated.
+
+### Running the benchmarks
+
 The code to automatically emulate and benchmark the Fxmark gRPC program is located in ```run/```.
 
 To run the benchmarks with a qemu emulation layer (requires preconfigured disk image - see CONFIGURATION.md):
