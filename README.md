@@ -78,6 +78,12 @@ cargo test
 
 ### Huge Page Configuration
 
+Install the dependencies:
+```bash
+sudo apt install hugepages
+sudo apt install -y libhugetlbfs-dev
+```
+
 Before running any benchmarks, it's necessary to setup up huge pages.
 First, you'll want to ensure the default huge page size by running:
 ```bash
@@ -104,6 +110,11 @@ echo 65536 | sudo numactl -m 3 tee -a /proc/sys/vm/nr_hugepages_mempolicy
 ```
 
 Rerun ```numastat -m``` to verify the pages are preallocated.
+
+Then, you'll need to initiate the hugetlbfs with:
+```bash
+sudo hugeadm --create-global-mounts
+```
 
 ### Running the benchmarks
 

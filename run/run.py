@@ -19,7 +19,7 @@ from plumbum.cmd import whoami, python3, cat, getent, whoami
 
 BOOT_TIMEOUT = 60
 EXP_TIMEOUT = 10000000
-CSV_FILE = "fxmark_grpc_benchmark.csv" 
+CSV_FILE = "fxmark_grpc_{}_benchmark.csv" 
 AFF_TIMEOUT = 120
 
 def get_network_config(workers):
@@ -59,7 +59,7 @@ parser.add_argument("-o", "--openf", nargs="+", required=True,
                     help="Specify number of open files for mix benchmarks")
 parser.add_argument("-d", "--duration", type=int, required=True, default=10, 
                     help="Experiment duration")
-parser.add_argument("-f", "--csv", type=str, required=False, default="fxmark_grpc_benchmarks.csv", 
+parser.add_argument("-f", "--csv", type=str, required=False, default=None, 
                     help="CSV file")
 parser.add_argument("-n", "--offset", type=int, required=False, default=0, 
                     help="Offset for numa host")
@@ -263,10 +263,13 @@ def start_client_tcp(cid, args, node, affinity):
     f.close()
 
 def start_server_uds():
-    cmd = "numactl --membind=0 --cpunodebind=0 ../prog/target/release/fxmark_grpc --mode uds_server"
+    cmd = "numactl --membind=0 --cpunodebind=0 " + \
+        "../prog/target/release/fxmark_grpc --mode uds_server"
     print("Invoking UDS server with command: ", cmd)
 
-    child = pexpect.run(cmd, timeout=EXP_TIMEOUT)
+    child = pexpect.run(cmd, timeout=EXP_TIMEOUT, env =
+                          {'LD_PRELOAD': '/usr/lib/x86_64-linux-gnu/libhugetlbfs.so', 
+                           'HUGETLB_MORECORE': 'yes'})
 
 def start_client_uds(cid, args):
     wratios = ""
@@ -280,12 +283,12 @@ def start_client_uds(cid, args):
         "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + \
         " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
     print("Invoking UDS client with command: ", cmd)
-    sys.stdout.flush()
 
-    child = pexpect.run(cmd, timeout=EXP_TIMEOUT)
+    child = pexpect.run(cmd, timeout=EXP_TIMEOUT, env =
+                          {'LD_PRELOAD': '/usr/lib/x86_64-linux-gnu/libhugetlbfs.so', 
+                           'HUGETLB_MORECORE': 'yes'})
 
     output = child
-
     f = open(args.csv, "a")
     f.write(output.decode().replace('\r', ''))
     f.close()
@@ -398,6 +401,9 @@ if __name__ == '__main__':
     "Execution pipeline for building and launching Fxmark gRPC"
     args = parser.parse_args()
     print("Invoking run.py with command: " + " ".join(sys.argv))
+
+    if args.csv is None:
+        args.csv = CSV_FILE.format(args.transport)
 
     # print(NETWORK_CONFIG)
     if args.transport == "tcp":

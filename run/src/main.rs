@@ -59,7 +59,7 @@ fn main() {
             Arg::with_name("csv")
                 .long("csv")
                 .required(false)
-                .default_value("fxmark_grpc_benchmarks.csv")
+                .default_value("")
                 .help("Path to csv file")
                 .takes_value(true),
         )
@@ -70,6 +70,12 @@ fn main() {
     let openfs: Vec<&str> = matches.values_of("openf").unwrap().collect();
     let duration = value_t!(matches, "duration", String).unwrap_or_else(|e| e.exit());
     let csv = value_t!(matches, "csv", String).unwrap_or_else(|e| e.exit());
+
+    let csv = if csv == "" {
+        format!("fxmark_grpc_{}_benchmarks.csv", transport)
+    } else {
+        csv
+    };
 
     let wr_joined = wratios.join(" ");
     let of_joined = openfs.join(" ");
@@ -116,7 +122,7 @@ fn main() {
         let scores = format!("{}", num_clients + 1);
 
         // Use python runner to perform emulation
-        if transport == "tcp" { 
+        if transport == "tcp" {
             let image = value_t!(matches, "image", String).unwrap_or_else(|e| e.exit());
             let output = Command::new("python3")
                 .arg("run.py")
@@ -170,7 +176,6 @@ fn main() {
                 .expect("failed to execute process");
             println!("Status: {}", output.status);
             println!("Stdout: {}", String::from_utf8_lossy(&output.stdout));
-
         }
 
         if total_cores == 1 {
@@ -185,9 +190,10 @@ fn main() {
         // when there's equal number of clients to numa nodes.
         if total_cores + num_clients + 1 > machine.max_cores()
             || num_clients == machine.max_numa_nodes()
-            && cores_per_client + num_clients + 1 > total_cores_per_node
-            || num_clients == max_numa && max_numa > 1 {
-                break;
+                && cores_per_client + num_clients + 1 > total_cores_per_node
+            || num_clients == max_numa && max_numa > 1
+        {
+            break;
         }
     }
 }

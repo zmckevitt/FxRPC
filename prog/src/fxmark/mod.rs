@@ -181,11 +181,18 @@ where
             client,
         );
 
-        let mut csv_file = OpenOptions::new()
-            .append(true)
-            .create(true)
-            .open(OUTPUT_FILE)
-            .expect("Cant open output file");
+        let mut csv_file = if client_params.log_mode == LogMode::CSV {
+            Some(Box::new(
+                OpenOptions::new()
+                    .append(true)
+                    .create(true)
+                    .open(OUTPUT_FILE)
+                    .expect("Cant open output file"),
+            ))
+        } else {
+            None
+        };
+
         for iteration in 1..(bench_duration_secs + 1) {
             let row = format!(
                 "{},{:?},{},{},{},{},{},{},{},{},{}\n",
@@ -204,8 +211,12 @@ where
 
             match client_params.log_mode {
                 LogMode::CSV => {
-                    let r = csv_file.write(row.as_bytes());
-                    assert!(r.is_ok());
+                    if let Some(ref mut my_file) = csv_file {
+                        let r = my_file.write(row.as_bytes());
+                        assert!(r.is_ok());
+                    } else {
+                        panic!("Should have file in CSV mode");
+                    }
                 }
                 LogMode::STDOUT => {
                     print!("{}", row);
