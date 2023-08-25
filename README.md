@@ -80,7 +80,6 @@ cargo test
 
 Install the dependencies:
 ```bash
-sudo apt install hugepages
 sudo apt install -y libhugetlbfs-dev
 ```
 
