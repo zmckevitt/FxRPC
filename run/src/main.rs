@@ -164,7 +164,7 @@ fn main() {
             let nonuma = if matches.is_present("nonuma") {
                 "--nonuma"
             } else {
-                ""
+                "--numa"
             };
             let output = Command::new("python3")
                 .arg("run.py")

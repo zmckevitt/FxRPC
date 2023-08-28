@@ -67,6 +67,8 @@ parser.add_argument("-m", "--memory", type=int, required=False, default=1024,
                     help="Amount of memory to give to each instance")
 parser.add_argument("--nonuma", required=False, default=False, action="store_true", 
                     help="Do not pin cores to numa node")
+parser.add_argument("--numa", required=False, default=False, action="store_true", 
+                    help="Never used. Required so rust runner can pass alternate flag to --nonuma")
 
 subparser = parser.add_subparsers(help='Advanced network configuration')
 
@@ -288,7 +290,7 @@ def start_client_uds(cid, args):
         "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + \
         " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
     if(not args.nonuma):
-        cmd = "numactl --membind=" + str(cid) + " --cpunodebind= " + str(cid) + cmd
+        cmd = "numactl --membind=" + str(cid) + " --cpunodebind=" + str(cid) + " " + cmd
         print("Invoking UDS client with command: ", cmd)
         child = pexpect.run(cmd, timeout=EXP_TIMEOUT, env =
                           {'LD_PRELOAD': '/usr/lib/x86_64-linux-gnu/libhugetlbfs.so', 
