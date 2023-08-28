@@ -121,12 +121,23 @@ fn main() {
         }
 
         let cores_per_client = total_cores / num_clients;
+
+        let scores = format!("{}", num_clients + 1);
+        
+        // We want controller to have it's own socket, so if it's not a 1 socket machine, break
+        // when there's equal number of clients to numa nodes.
+        if total_cores + num_clients + 1 > machine.max_cores()
+            || num_clients == machine.max_numa_nodes()
+                && cores_per_client + num_clients + 1 > total_cores_per_node
+            || num_clients == max_numa && max_numa > 1
+        {
+            break;
+        }
+
         eprintln!(
             "\tRunning test with {:?} total core(s), {:?} clients (cores_per_client={:?})",
             total_cores, num_clients, cores_per_client
         );
-
-        let scores = format!("{}", num_clients + 1);
 
         // Use python runner to perform emulation
         if transport == "tcp" {
@@ -198,15 +209,6 @@ fn main() {
             total_cores += 3;
         } else {
             total_cores += 4;
-        }
-        // We want controller to have it's own socket, so if it's not a 1 socket machine, break
-        // when there's equal number of clients to numa nodes.
-        if total_cores + num_clients + 1 > machine.max_cores()
-            || num_clients == machine.max_numa_nodes()
-                && cores_per_client + num_clients + 1 > total_cores_per_node
-            || num_clients == max_numa && max_numa > 1
-        {
-            break;
         }
     }
 }
