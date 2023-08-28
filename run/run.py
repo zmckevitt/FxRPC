@@ -65,6 +65,10 @@ parser.add_argument("-n", "--offset", type=int, required=False, default=0,
                     help="Offset for numa host")
 parser.add_argument("-m", "--memory", type=int, required=False, default=1024, 
                     help="Amount of memory to give to each instance")
+parser.add_argument("--nonuma", required=False, default=False, action="store_true", 
+                    help="Do not pin cores to numa node")
+parser.add_argument("--numa", required=False, default=False, action="store_true", 
+                    help="Never used. Required so rust runner can pass alternate flag to --nonuma")
 
 subparser = parser.add_subparsers(help='Advanced network configuration')
 
@@ -262,14 +266,18 @@ def start_client_tcp(cid, args, node, affinity):
     f.write(output.decode().replace('\r', ''))
     f.close()
 
-def start_server_uds():
-    cmd = "numactl --membind=0 --cpunodebind=0 " + \
-        "../prog/target/release/fxmark_grpc --mode uds_server"
-    print("Invoking UDS server with command: ", cmd)
-
-    child = pexpect.run(cmd, timeout=EXP_TIMEOUT, env =
+def start_server_uds(args):
+    cmd = "../prog/target/release/fxmark_grpc --mode uds_server"
+    if(not args.nonuma):
+        cmd = "numactl --membind=0 --cpunodebind=0 " + cmd
+        print("Invoking UDS server with command: ", cmd)
+        child = pexpect.run(cmd, timeout=EXP_TIMEOUT, env =
                           {'LD_PRELOAD': '/usr/lib/x86_64-linux-gnu/libhugetlbfs.so', 
                            'HUGETLB_MORECORE': 'yes'})
+    else:
+        print("Invoking UDS server with command: ", cmd)
+        child = pexpect.run(cmd, timeout=EXP_TIMEOUT)
+
 
 def start_client_uds(cid, args):
     wratios = ""
@@ -278,15 +286,18 @@ def start_client_uds(cid, args):
     openfs = ""
     for f in args.openf:
         openfs += f + " "
-    cmd = "numactl --membind=" + str(cid) + " --cpunodebind=" + str(cid) + \
-        " ../prog/target/release/fxmark_grpc --mode uds_client --wratio " + wratios + \
+    cmd = "../prog/target/release/fxmark_grpc --mode uds_client --wratio " + wratios + \
         "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + \
         " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
-    print("Invoking UDS client with command: ", cmd)
-
-    child = pexpect.run(cmd, timeout=EXP_TIMEOUT, env =
+    if(not args.nonuma):
+        cmd = "numactl --membind=" + str(cid) + " --cpunodebind=" + str(cid) + " " + cmd
+        print("Invoking UDS client with command: ", cmd)
+        child = pexpect.run(cmd, timeout=EXP_TIMEOUT, env =
                           {'LD_PRELOAD': '/usr/lib/x86_64-linux-gnu/libhugetlbfs.so', 
                            'HUGETLB_MORECORE': 'yes'})
+    else:
+        print("Invoking UDS client with command: ", cmd)
+        child = pexpect.run(cmd, timeout=EXP_TIMEOUT)
 
     output = child
     f = open(args.csv, "a")
@@ -299,7 +310,7 @@ def qemu_run(args, affinity, nodes):
         if(args.transport == "tcp"):
             start_server_tcp(args, 0, affinity[0])
         if(args.transport == "uds"):
-            start_server_uds()
+            start_server_uds(args)
     else:
         print("Spawning server with pid: " + str(s_pid))
         sleep(5)

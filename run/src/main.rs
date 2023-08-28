@@ -63,6 +63,13 @@ fn main() {
                 .help("Path to csv file")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("nonuma")
+                .long("nonuma")
+                .required(false)
+                .help("Do not pin cores to NUMA node")
+                .takes_value(false),
+        )
         .get_matches_from(args);
 
     let transport = value_t!(matches, "transport", String).unwrap_or_else(|e| e.exit());
@@ -154,6 +161,11 @@ fn main() {
         }
         // Unix Domain Socket
         else {
+            let nonuma = if matches.is_present("nonuma") {
+                "--nonuma"
+            } else {
+                "--numa"
+            };
             let output = Command::new("python3")
                 .arg("run.py")
                 .arg("--transport")
@@ -172,6 +184,7 @@ fn main() {
                 .arg(duration.clone())
                 .arg("--csv")
                 .arg(csv.clone())
+                .arg(nonuma)
                 .output()
                 .expect("failed to execute process");
             println!("Status: {}", output.status);
