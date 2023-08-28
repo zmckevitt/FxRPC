@@ -80,7 +80,7 @@ cargo test
 
 Install the dependencies:
 ```bash
-sudo apt install -y libhugetlbfs-dev
+sudo apt install -y libhugetlbfs-dev libhugetlbfs-bin
 ```
 
 Before running any benchmarks, it's necessary to setup up huge pages.
