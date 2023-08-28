@@ -261,9 +261,11 @@ def start_client_tcp(cid, args, node, affinity):
                        "duration,operations,client_id,client_cores,nclients")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
-    output = child.before
+    output = child.before.decode().replace('\r', '')
+    if(output[0] == '\n'):
+        output = output[1:]
     f = open(args.csv, "a")
-    f.write(output.decode().replace('\r', ''))
+    f.write(output)
     f.close()
 
 def start_server_uds(args):
