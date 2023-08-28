@@ -1,7 +1,7 @@
 # Disk Image Configuration
 
 ## Image Download
-The disk imageused for the qemu emulation is based on Ubuntu Server 20.04. To configure the disk image, first download a prebuilt cloud image:
+The disk image used for the qemu emulation is based on Ubuntu Server 20.04. To configure the disk image, first download a prebuilt cloud image:
 
 ```wget https://cloud-images.ubuntu.com/focal/current/focal-server-cloudimg-amd64.img```
 
@@ -76,7 +76,7 @@ Lastly, ```sudo reboot now``` to ensure that you can automatically boot into roo
 
 To run the ```fxmark_grpc``` program in the guest, first compile it elsewhere (preferrably on a host with Ubuntu 20.04), and scp the binary to the root directory from the guest:
 
-```scp user@host:/path/to/fxmark_grpc/proc/target/release/fxmark_grpc /root```
+```scp user@host:/path/to/fxmark_grpc/prog/target/release/fxmark_grpc /root```
 
 Note: in order to compile on the guest image, one must clone the repository and follow the instructions in ```README.md``` to build the binary from scratch. This will require extending (resizing) the disk image.
 
@@ -84,7 +84,7 @@ After the binary is installed on the guest, install necessary dependencies:
 
 ```
 sudo apt update
-sudo apt install hwloc
+sudo apt install -y hwloc
 ```
 
 Verify that the binary works by trying to run it:
@@ -96,7 +96,11 @@ Verify that the binary works by trying to run it:
 
 Once the disk image is configured, the last thing to do is override any prior network configuration, as we will be using our own qemu configuration. To do so, remove existing network plans:
 ```
-rm /etc/netplan/50-cloud-init.yaml
+sudo mv /etc/netplan/50-cloud-init.yaml /root
 ```
 
 Note: without this file, you can no longer use userspace networking, so ensure that all network dependent steps are complete prior to this step!
+Finish with:
+```
+sudo shutdown now
+```
