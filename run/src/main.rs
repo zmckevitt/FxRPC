@@ -123,7 +123,7 @@ fn main() {
         let cores_per_client = total_cores / num_clients;
 
         let scores = format!("{}", num_clients + 1);
-        
+
         // We want controller to have it's own socket, so if it's not a 1 socket machine, break
         // when there's equal number of clients to numa nodes.
         if total_cores + num_clients + 1 > machine.max_cores()
@@ -169,6 +169,7 @@ fn main() {
 
             println!("Status: {}", output.status);
             println!("Stdout: {}", String::from_utf8_lossy(&output.stdout));
+            println!("Stderr: {}", String::from_utf8_lossy(&output.stderr));
         }
         // Unix Domain Socket
         else {
@@ -200,6 +201,7 @@ fn main() {
                 .expect("failed to execute process");
             println!("Status: {}", output.status);
             println!("Stdout: {}", String::from_utf8_lossy(&output.stdout));
+            println!("Stderr: {}", String::from_utf8_lossy(&output.stderr));
         }
 
         if total_cores == 1 {

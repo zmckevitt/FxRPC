@@ -21,6 +21,7 @@ BOOT_TIMEOUT = 60
 EXP_TIMEOUT = 10000000
 CSV_FILE = "fxmark_grpc_{}_benchmark.csv" 
 AFF_TIMEOUT = 120
+HUGETLBFS_PATH = "/usr/lib/x86_64-linux-gnu/libhugetlbfs.so"
 
 def get_network_config(workers):
     """
@@ -274,7 +275,7 @@ def start_server_uds(args):
         cmd = "numactl --membind=0 --cpunodebind=0 " + cmd
         print("Invoking UDS server with command: ", cmd)
         child = pexpect.run(cmd, timeout=EXP_TIMEOUT, env =
-                          {'LD_PRELOAD': '/usr/lib/x86_64-linux-gnu/libhugetlbfs.so', 
+                          {'LD_PRELOAD': HUGETLBFS_PATH, 
                            'HUGETLB_MORECORE': 'yes'})
     else:
         print("Invoking UDS server with command: ", cmd)
@@ -295,7 +296,7 @@ def start_client_uds(cid, args):
         cmd = "numactl --membind=" + str(cid) + " --cpunodebind=" + str(cid) + " " + cmd
         print("Invoking UDS client with command: ", cmd)
         child = pexpect.run(cmd, timeout=EXP_TIMEOUT, env =
-                          {'LD_PRELOAD': '/usr/lib/x86_64-linux-gnu/libhugetlbfs.so', 
+                          {'LD_PRELOAD': HUGETLBFS_PATH, 
                            'HUGETLB_MORECORE': 'yes'})
     else:
         print("Invoking UDS client with command: ", cmd)
@@ -455,4 +456,10 @@ if __name__ == '__main__':
         qemu_run(args, affinity, nodes)
         cleanup()
     if args.transport == "uds":
+        if not args.nonuma:
+            if not os.path.isfile(HUGETLBFS_PATH):
+                print("ERROR: " + HUGETLBFS_PATH + " is not present. " \
+                        "Please change path or install hugetlbfs")
+                sys.exit(errno.EINVAL)
+
         qemu_run(args, [], [])
