@@ -131,4 +131,8 @@ To run the same benchmark using uds (requires ```prog/``` to be built with ```--
 ```
 cargo run -- --transport uds --wratio 0 --openf 1 --duration 20
 ```
+If running UDS benchmarks on a non-NUMA architecture, specify with the ```--nonuma``` flag:
+```
+cargo run -- --transport uds --wratio 0 --openf 1 --duration 20 --nonuma
+```
 Note: the program writes and removes ephemeral disk images to/from ```/tmp```.
