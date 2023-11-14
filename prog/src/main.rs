@@ -6,7 +6,6 @@
 use clap::{crate_version, value_t, App, Arg};
 use std::fs::{remove_file, OpenOptions};
 use std::io::Write;
-use std::sync::{Arc, Mutex};
 
 mod fxmark;
 use crate::fxmark::{bench, OUTPUT_FILE};
@@ -147,11 +146,20 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 LogMode::STDOUT
             };
 
+            let conn_type = if mode == "loc_client" {
+                ConnType::TCP_LOCAL
+            } else if mode == "emu_client" {
+                ConnType::TCP_REMOTE
+            } else {
+                ConnType::UDS
+            };
+
             let client_params = ClientParams {
                 cid: cid,
                 nclients: nclients,
                 ccores: ccores,
                 log_mode: log_mode,
+                conn_type: conn_type,
             };
 
             let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients\n";
@@ -173,27 +181,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
 
-            let host_addr = if mode == "loc_client" {
-                "http://[::1]:8080"
-            } else {
-                "http://172.31.0.1:8080"
-            };
-
-            let client = if mode != "uds_client" {
-                Arc::new(Mutex::new(BlockingClient::connect_tcp(host_addr).unwrap()))
-            } else {
-                Arc::new(Mutex::new(BlockingClient::connect_uds().unwrap()))
-            };
             for of in openfs {
                 for wr in &wratios {
-                    bench(
-                        bench_name.clone(),
-                        of,
-                        *wr,
-                        duration,
-                        &client_params,
-                        client.clone(),
-                    );
+                    bench(bench_name.clone(), of, *wr, duration, &client_params);
                 }
             }
         }

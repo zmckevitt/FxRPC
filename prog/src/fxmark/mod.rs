@@ -8,7 +8,6 @@ extern crate alloc;
 use std::convert::TryInto;
 use std::fs::OpenOptions;
 use std::io::Write;
-use std::sync::Mutex;
 use std::thread;
 use std::time::Duration;
 
@@ -29,7 +28,7 @@ use utils::topology::*;
 mod mix;
 use crate::fxmark::mix::MIX;
 
-use fxmark_grpc::{BlockingClient, ClientParams, LogMode};
+use fxmark_grpc::{ClientParams, ConnType, LogMode};
 
 const PAGE_SIZE: usize = 1008;
 
@@ -81,14 +80,14 @@ impl FromStr for ARGs {
 }
 
 pub trait Bench {
-    fn init(&self, cores: Vec<u64>, open_files: usize, client: &mut Arc<Mutex<BlockingClient>>);
+    fn init(&self, cores: Vec<u64>, open_files: usize, conn_type: ConnType);
     fn run(
         &self,
         barrier: &AtomicUsize,
         duration: u64,
         core: usize,
         write_ratio: usize,
-        client: &mut Arc<Mutex<BlockingClient>>,
+        conn_type: ConnType,
     ) -> Vec<usize>;
 }
 
@@ -97,7 +96,6 @@ unsafe extern "C" fn fxmark_bencher_trampoline<T>(
     cores: usize,
     core_id: usize,
     duration: u64,
-    client: &mut Arc<Mutex<BlockingClient>>,
     client_params: ClientParams,
 ) -> *mut u8
 where
@@ -111,7 +109,6 @@ where
         bench.write_ratio,
         bench.open_files,
         duration,
-        client,
         client_params,
     );
     ptr::null_mut()
@@ -168,7 +165,6 @@ where
         write_ratio: usize,
         open_files: usize,
         duration: u64,
-        client: &mut Arc<Mutex<BlockingClient>>,
         client_params: ClientParams,
     ) {
         // let bench_duration_secs = if cfg!(feature = "smoke") { 1 } else { 10 };
@@ -178,7 +174,7 @@ where
             bench_duration_secs,
             core_id,
             write_ratio,
-            client,
+            client_params.conn_type,
         );
 
         let mut csv_file = if client_params.log_mode == LogMode::CSV {
@@ -237,7 +233,6 @@ pub fn bench(
     write_ratio: usize,
     duration: u64,
     client_params: &ClientParams,
-    client: Arc<Mutex<BlockingClient>>,
 ) {
     fn start<
         T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -246,7 +241,6 @@ pub fn bench(
         open_files: usize,
         write_ratio: usize,
         duration: u64,
-        mut client: Arc<Mutex<BlockingClient>>,
         client_params: &ClientParams,
     ) {
         let thread_mappings = microbench.thread_mappings.clone();
@@ -275,9 +269,9 @@ pub fn bench(
 
                 for core_id in cores.clone() {
                     let mb = Arc::new(microbench.clone());
-                    mb.bench.init(cores.clone(), open_files, &mut client);
+                    mb.bench
+                        .init(cores.clone(), open_files, client_params.conn_type);
 
-                    let mut client1 = client.clone();
                     let bench_duration = duration.clone();
                     let params = (*client_params).clone();
                     thandles.push(thread::spawn(move || {
@@ -289,7 +283,6 @@ pub fn bench(
                                 clen,
                                 core_id as usize,
                                 bench_duration,
-                                &mut client1,
                                 params,
                             );
                         }
@@ -305,6 +298,6 @@ pub fn bench(
 
     if benchmark == "mix" {
         let mb = MicroBench::<MIX>::new("mix", write_ratio, open_files, client_params);
-        start::<MIX>(mb, open_files, write_ratio, duration, client, client_params);
+        start::<MIX>(mb, open_files, write_ratio, duration, client_params);
     }
 }

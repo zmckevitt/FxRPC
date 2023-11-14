@@ -38,6 +38,13 @@ pub mod syscalls {
 }
 
 //////////////////////////////////////// CLIENT ////////////////////////////////////////
+#[allow(non_camel_case_types)]
+#[derive(Clone, Copy)]
+pub enum ConnType {
+    TCP_LOCAL,
+    TCP_REMOTE,
+    UDS,
+}
 
 #[derive(Clone)]
 pub struct ClientParams {
@@ -45,6 +52,7 @@ pub struct ClientParams {
     pub nclients: usize,
     pub ccores: usize,
     pub log_mode: LogMode,
+    pub conn_type: ConnType,
 }
 
 pub struct BlockingClient {

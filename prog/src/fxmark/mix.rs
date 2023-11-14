@@ -4,13 +4,11 @@
 extern crate alloc;
 
 use crate::fxmark::{Bench, MAX_OPEN_FILES, PAGE_SIZE};
-use alloc::sync::Arc;
 use alloc::vec::Vec;
 use alloc::{format, vec};
 use core::cell::RefCell;
 use core::sync::atomic::{AtomicUsize, Ordering};
 use libc::{O_CREAT, O_RDWR, S_IRWXU};
-use std::sync::Mutex;
 use x86::random::rdrand16;
 
 use fxmark_grpc::*;
@@ -45,24 +43,23 @@ impl Default for MIX {
 }
 
 impl Bench for MIX {
-    fn init(&self, cores: Vec<u64>, open_files: usize, client: &mut Arc<Mutex<BlockingClient>>) {
+    fn init(&self, cores: Vec<u64>, open_files: usize, conn_type: ConnType) {
+        let mut client = match conn_type {
+            ConnType::TCP_LOCAL => BlockingClient::connect_tcp("http://[::1]:8080").unwrap(),
+            ConnType::TCP_REMOTE => BlockingClient::connect_tcp("http://172.31.0.1:8080").unwrap(),
+            ConnType::UDS => BlockingClient::connect_uds().unwrap(),
+        };
+
         *self.cores.borrow_mut() = cores.len();
         *self.min_core.borrow_mut() = *cores.iter().min().unwrap() as usize;
         *self.open_files.borrow_mut() = open_files;
         for file_num in 0..open_files {
             let filename = format!("file{}.txt", file_num);
-            let fd = {
-                client
-                    .lock()
-                    .unwrap()
-                    .grpc_open(&filename, O_RDWR | O_CREAT, S_IRWXU)
-            }
-            .expect("FileOpen syscall failed");
+            let fd = { client.grpc_open(&filename, O_RDWR | O_CREAT, S_IRWXU) }
+                .expect("FileOpen syscall failed");
 
             let ret = {
                 client
-                    .lock()
-                    .unwrap()
                     .grpc_pwrite(fd, &self.page, PAGE_SIZE, self.size)
                     .expect("FileWriteAt syscall failed")
             };
@@ -77,8 +74,14 @@ impl Bench for MIX {
         duration: u64,
         core: usize,
         write_ratio: usize,
-        client: &mut Arc<Mutex<BlockingClient>>,
+        conn_type: ConnType,
     ) -> Vec<usize> {
+        let mut client = match conn_type {
+            ConnType::TCP_LOCAL => BlockingClient::connect_tcp("http://[::1]:8080").unwrap(),
+            ConnType::TCP_REMOTE => BlockingClient::connect_tcp("http://172.31.0.1:8080").unwrap(),
+            ConnType::UDS => BlockingClient::connect_uds().unwrap(),
+        };
+
         let mut iops_per_second = Vec::with_capacity(duration as usize);
 
         let file_num = (core % self.max_open_files) % *self.open_files.borrow();
@@ -92,8 +95,6 @@ impl Bench for MIX {
 
         {
             client
-                .lock()
-                .unwrap()
                 .grpc_pwrite(fd as i32, &page, PAGE_SIZE, self.size)
                 .expect("can't write_at");
         }
@@ -118,8 +119,6 @@ impl Bench for MIX {
 
                     if random_num as usize % 100 < write_ratio {
                         if client
-                            .lock()
-                            .unwrap()
                             .grpc_pwrite(fd as i32, &page, PAGE_SIZE, offset as i64)
                             .expect("FileWriteAt syscall failed")
                             != PAGE_SIZE as i32
@@ -128,8 +127,6 @@ impl Bench for MIX {
                         }
                     } else {
                         if client
-                            .lock()
-                            .unwrap()
                             .grpc_pread(fd as i32, &mut page, PAGE_SIZE, offset as i64)
                             .expect("FileReadAt syscall failed")
                             != PAGE_SIZE as i32
@@ -158,8 +155,6 @@ impl Bench for MIX {
             for i in 0..*self.open_files.borrow() {
                 let fd = self.fds.borrow()[i];
                 client
-                    .lock()
-                    .unwrap()
                     .grpc_close(fd as i32)
                     .expect("FileClose syscall failed");
             }
