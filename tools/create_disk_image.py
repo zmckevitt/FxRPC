@@ -21,7 +21,7 @@ from plumbum.cmd import whoami, python3, cat, getent, whoami
 UBUNTU_VERSION="jammy"
 
 # packages to be installed
-UBUNTU_PACKAGES=["libevent-dev", "libgomp1"]
+UBUNTU_PACKAGES=["libevent-dev", "libgomp1", "net-tools"]
 
 # The URL of the Ubuntu Cloud Image
 DISK_FILE_URL=f"https://cloud-images.ubuntu.com/{UBUNTU_VERSION}/current/{UBUNTU_VERSION}-server-cloudimg-amd64.img"
@@ -79,7 +79,7 @@ def spawn_qemu(disk, config, conf: bool):
         "/usr/bin/env" , "qemu-system-x86_64",
         "-name", f"cloud-init,debug-threads=on",
         "-enable-kvm", "-nographic",
-        "-machine", "q35"
+        "-machine", "q35",
         # CPU configuration
         "-cpu", "host,migratable=no,+invtsc,+tsc,+x2apic,+fsgsbase",
         "-smp", f"2,sockets=1,maxcpus=2",
@@ -236,7 +236,7 @@ def prepare_cloud_init_config():
         nd.write( "  ethernets:\n")
         nd.write( "    ens3:\n")
         nd.write( "      match:\n")
-        nd.write(f"       macaddress: '{MAC_ADDRESS}'\n")
+        nd.write(f"        macaddress: '{MAC_ADDRESS}'\n")
         nd.write(f"      dhcp4: false\n")
         nd.write(f"      set-name: ens3\n")
         nd.write(f"      dhcp6: false\n")
