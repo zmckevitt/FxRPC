@@ -3,19 +3,13 @@
 # Copyright © 2021 VMware, Inc. All Rights Reserved.
 # SPDX-License-Identifier: Apache-2.0 OR MIT
 
-import os
-import sys
 import signal
 import pexpect
-import errno
-import shutil
 from pathlib import Path
 from time import sleep
 
-from plumbum import colors, local, SshMachine
-from plumbum.commands import ProcessExecutionError
-
-from plumbum.cmd import whoami, python3, cat, getent, whoami
+from plumbum import colors, local
+from plumbum.cmd import whoami, whoami
 
 # the version of the ubuntu distro to take
 UBUNTU_VERSION="jammy"
@@ -70,6 +64,7 @@ def consume_output(qemu, print=False):
 # execute a command and wait for the
 def do_cmd(qemu, cmd):
     qemu.sendline(f"{cmd}")
+    #qemu.expect(f"root@{HOSTNAME}", timeout=30000)
     qemu.expect(f"root@{HOSTNAME}")
 
 # spawns a new Qemu instance
@@ -92,7 +87,7 @@ def spawn_qemu(disk, config, conf: bool):
     ]
 
     if config != None:
-        qemu_cmd.extend(["-drive", f"file=str(config),if=virtio"])
+        qemu_cmd.extend(["-drive", f"file={str(config)},if=virtio"])
 
     qemu_cmd_str = " ".join(qemu_cmd)
     print(f" > spawning qemu with command: `{qemu_cmd_str}`")
