@@ -204,8 +204,8 @@ def start_memcached(args, node, affinity, disk_image):
         "-numa", "cpu,node-id=0,socket-id=0",
         # memory
         "-m", f"{qemu_memory_size}M",
-        # "-object", f"memory-backend-memfd,id=nmem0,merge=off,dump=on,prealloc=off,size={qemu_memory_size}M,host-nodes={host_nodes},policy=bind,hugetlb=on,hugetlbsize=2M,share=on",
-        "-object", f"memory-backend-memfd,id=nmem0,merge=off,dump=on,prealloc=off,size={qemu_memory_size}M,host-nodes={host_nodes},policy=bind,share=on",
+        "-object", f"memory-backend-memfd,id=nmem0,merge=off,dump=on,prealloc=off,size={qemu_memory_size}M,host-nodes={host_nodes},policy=bind,hugetlb=on,hugetlbsize=2M,share=on",
+        # "-object", f"memory-backend-memfd,id=nmem0,merge=off,dump=on,prealloc=off,size={qemu_memory_size}M,host-nodes={host_nodes},policy=bind,share=on",
         # networking
         "-device", f"virtio-net,netdev=nd0,mac={mac}",
         "-netdev", f"tap,id=nd0,script=no,ifname={tap}",
@@ -279,6 +279,7 @@ def start_memcached(args, node, affinity, disk_image):
         print(child.after)
         raise e
     print(f"   + memcached ready")
+
     return child
 
 def spawn_load_balancer(args):
@@ -364,6 +365,8 @@ def qemu_run(args, affinity, nodes):
     # terminate the servers
     for s in servers :
         s.kill(signal.SIGKILL)
+        s.wait()
+
 
     csv = Path(args.out)
     if not csv.exists():
@@ -385,7 +388,8 @@ def setup(args):
 
     print (" > creating new template image")
     # create a copy of the disk image, using CoW
-    disk_image_template = "my_disk_image_base.img"
+    disk_image_template = Path(os.path.abspath("my_disk_image_base.img"))
+    disk_image_template.unlink()
     qemuimg("create", "-f", "qcow2", "-b", abs_path, "-F", "qcow2",  disk_image_template)
 
 
@@ -405,7 +409,7 @@ def setup(args):
 
     with open(pidfile, "r") as f:
         pid = f.readline()
-    pid = pid.replace("\n", '')
+    pid = int(pid.replace("\n", ''))
 
     memcached = Path(args.kvstore)
     dest = Path(mp / "root" / "memcached")
@@ -414,8 +418,12 @@ def setup(args):
     guestunmount = local["guestunmount"]
     guestunmount(str(mp))
 
-    kill = local["kill"]
-    kill("-0", pid)
+    os.kill(pid, 0)
+    try:
+        os.waitpid(pid, 0)
+    except:
+        pass
+
     sleep(5)
 
     print (" > creating the images for the memcached severs")
