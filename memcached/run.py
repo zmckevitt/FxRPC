@@ -26,7 +26,7 @@ CSV_FILE = "fxmark_grpc_{}_benchmark.csv"
 AFF_TIMEOUT = 120
 HUGETLBFS_PATH = "/usr/lib/x86_64-linux-gnu/libhugetlbfs.so"
 
-CSV_ROWS="benchmark,os,nthreads,servers,protocol,mem,queries,time,thpt"
+CSV_ROWS="benchmark,os,protocol,npieces,nthreads,mem,queries,time,thpt,notes"
 
 # the version of the ubuntu distro to take
 UBUNTU_VERSION="jammy"
@@ -288,7 +288,7 @@ def spawn_load_balancer(args):
         args.loadbalancer,
         "--binary",
         f"--num-queries={args.queries}",
-        f"--num-threads={args.cores}",
+        f"--num-threads={args.cores * args.servers}",
         f"--max-memory={args.memory}",
         f"--servers={servers}"
     ]
@@ -375,8 +375,8 @@ def qemu_run(args, affinity, nodes):
     else :
         csv = open(csv, "a")
 
-    # benchmark,os,nthreads,protocol,mem,queries,time,thpt
-    csv.write(f"memcached_sharded,linuxvm,{args.cores},{args.servers},tcp,{args.memory},{executed},{time},{thpt},{fail}\n")
+    # benchmark,os,protocol,npieces,nthreads,mem,queries,time,thpt,notes
+    csv.write(f"memcached_sharded,linuxvm,tcp,{args.servers},{args.cores},{args.memory},{executed},{time},{thpt},{fail}\n")
 
     print("Done")
 
@@ -533,3 +533,6 @@ if __name__ == '__main__':
     setup(args)
     qemu_run(args, affinity, nodes)
     cleanup()
+
+
+

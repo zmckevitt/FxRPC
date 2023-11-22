@@ -125,7 +125,8 @@ fn main() {
         PathBuf::from("memcached_benchmark_sharded_linux.csv")
     };
 
-    let row = "benchmark,os,nthreads,servers,protocol,mem,queries,time,thpt,notes\n";
+
+    let row = "benchmark,os,protocol,npieces,nthreads,mem,queries,time,thpt,notes\n";
     let _ = remove_file(csv.clone());
     let mut csv_file = OpenOptions::new()
         .append(true)
