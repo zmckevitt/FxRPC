@@ -148,23 +148,12 @@ fn main() {
         PathBuf::from("foo")
     };
 
-    let mut num_clients = 1;
-
-    let output = Command::new("python3")
-        .arg("run.py")
-        .arg("--servers")
-        .arg(format!("{}", num_clients))
-        .arg("--offset")
-        .arg("net")
-        .arg("--network-only")
-        .output()
-        .expect("failed to execute process");
-
+    let mut num_clients = 0;
     let mut total_cores = 1;
     while total_cores < max_cores {
         // Round up to get the number of clients
         let new_num_clients = (total_cores + (total_cores_per_node - 1)) / total_cores_per_node;
-        let cores_per_client = total_cores / num_clients;
+
         if num_clients != new_num_clients {
             num_clients = new_num_clients;
             total_cores = total_cores - (total_cores % num_clients);
@@ -179,7 +168,16 @@ fn main() {
                 .arg("--network-only")
                 .output()
                 .expect("failed to execute process");
+
+                println!("net: Status: {}", output.status);
+                println!("net: Stdout: {}", String::from_utf8_lossy(&output.stdout));
+                if !output.status.success() {
+                    println!("net: Stderr: {}", String::from_utf8_lossy(&output.stderr));
+                    panic!("net: failed to execute benchmark!")
+                }
         }
+
+        let cores_per_client = total_cores / num_clients;
 
         let scores = format!("{}", num_clients + 1);
 
