@@ -389,7 +389,8 @@ def setup(args):
     print (" > creating new template image")
     # create a copy of the disk image, using CoW
     disk_image_template = Path(os.path.abspath("my_disk_image_base.img"))
-    disk_image_template.unlink()
+    if disk_image_template.exists():
+        disk_image_template.unlink()
     qemuimg("create", "-f", "qcow2", "-b", abs_path, "-F", "qcow2",  disk_image_template)
 
 
