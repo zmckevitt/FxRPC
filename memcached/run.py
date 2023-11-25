@@ -67,6 +67,8 @@ parser.add_argument("-m", "--memory", type=int, required=False, default=1024,
                     help="Amount of memory to give to each instance")
 parser.add_argument("-l", "--loadbalancer", type=str, required=False, default="./loadbalancer",
                     help="The load balancer binary to use")
+parser.add_argument("--lib", type=str, required=False, default="",
+                    help="The load balancer binary to use")
 parser.add_argument("-k", "--kvstore", type=str, required=False, default="./memcached",
                     help="The memcached binary to use")
 parser.add_argument("--nonuma", required=False, default=False, action="store_true",
@@ -293,8 +295,16 @@ def spawn_load_balancer(args):
         f"--servers={servers}"
     ]
     cmd = " ".join(cmd)
+
+    env = os.environ.copy()
+    if len(args.lib) > 0 :
+        if 'LD_LIBRARY_PATH' in env :
+            env['LD_LIBRARY_PATH'] = f"{args.lib}:{env['LD_LIBRARY_PATH']}"
+        else :
+            env['LD_LIBRARY_PATH'] = args.lib
+
     print(f" > spawning load balancer with `{cmd}`")
-    return pexpect.spawn(cmd)
+    return pexpect.spawn(cmd, env=env)
 
 def qemu_run(args, affinity, nodes):
     log("Runing experiments: starting servers")

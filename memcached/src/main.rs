@@ -118,6 +118,7 @@ fn main() {
 
     let kv_store = outdir.join("memcached/memcached");
     let loadbalancer = outdir.join("loadbalancer/loadbalancer");
+    let libraries = outdir.join("build/lib");
 
     let csv = if let Some(csv) = args.csv.as_ref() {
         csv.clone()
@@ -210,6 +211,8 @@ fn main() {
             .arg(format!("{}", num_clients))
             .arg("--loadbalancer")
             .arg(loadbalancer.display().to_string())
+            .arg("--lib")
+            .arg(libraries.display().to_string())
             .arg("--kvstore")
             .arg(kv_store.display().to_string())
             .arg("--out")
