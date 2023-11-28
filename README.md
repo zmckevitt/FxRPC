@@ -108,6 +108,14 @@ echo 49152 | sudo numactl -m 2 tee -a /proc/sys/vm/nr_hugepages_mempolicy
 echo 65536 | sudo numactl -m 3 tee -a /proc/sys/vm/nr_hugepages_mempolicy
 ```
 
+For memcached benches on a 4x machine, you need something more like:
+```bash
+echo 131072 | sudo numactl -m 0 tee -a /proc/sys/vm/nr_hugepages_mempolicy
+echo 262144 | sudo numactl -m 1 tee -a /proc/sys/vm/nr_hugepages_mempolicy
+echo 393216 | sudo numactl -m 2 tee -a /proc/sys/vm/nr_hugepages_mempolicy
+echo 524288 | sudo numactl -m 3 tee -a /proc/sys/vm/nr_hugepages_mempolicy
+```
+
 Rerun ```numastat -m``` to verify the pages are preallocated.
 
 Then, you'll need to initiate the hugetlbfs with:
