@@ -1,0 +1,3 @@
+[submodule "dinos-rpc"]
+	path = dinos-rpc
+	url = https://github.com/zmckevitt/dinos-rpc.git
