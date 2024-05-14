@@ -1,3 +1,4 @@
-prog/target
+fxmark/target
 memcached/target
 run/target
+fxmark/Cargo.lock
