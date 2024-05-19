@@ -1,13 +1,14 @@
+use rpc::client::Client;
 use rpc::server::{RPCHandler, Server};
 use rpc::rpc::*;
 use rpc::transport::stdtcp::*;
 use std::net::{TcpListener, TcpStream};
 
-////////////////////////////// DiNOS RPC Implementation //////////////////////////////
+////////////////////////////// FS RPC Hdrs  //////////////////////////////
 
 #[derive(Debug, Eq, PartialEq, PartialOrd, Clone, Copy)]
 #[repr(u8)]
-pub(crate) enum DinosRpc {
+pub(crate) enum DRPC {
     /// Create a file
     Create = 0,
     /// Open a file
@@ -88,24 +89,27 @@ const MKDIR_HANDLER:  RPCHandler = handle_mkdir;
 const RMDIR_HANDLER:  RPCHandler = handle_rmdir;
 
 fn register_rpcs(server: &mut Server) {
-    server.register(DinosRpc::Open as RPCType, &OPEN_HANDLER).unwrap();
-    server.register(DinosRpc::Read as RPCType, &READ_HANDLER).unwrap();
-    server.register(DinosRpc::PRead as RPCType, &PREAD_HANDLER).unwrap();
-    server.register(DinosRpc::Write as RPCType, &WRITE_HANDLER).unwrap();
-    server.register(DinosRpc::PWrite as RPCType, &PWRITE_HANDLER).unwrap();
-    server.register(DinosRpc::Close as RPCType, &CLOSE_HANDLER).unwrap();
-    server.register(DinosRpc::Remove as RPCType, &REMOVE_HANDLER).unwrap();
-    server.register(DinosRpc::MkDir as RPCType, &MKDIR_HANDLER).unwrap();
+    server.register(DRPC::Open as RPCType, &OPEN_HANDLER).unwrap();
+    server.register(DRPC::Read as RPCType, &READ_HANDLER).unwrap();
+    server.register(DRPC::PRead as RPCType, &PREAD_HANDLER).unwrap();
+    server.register(DRPC::Write as RPCType, &WRITE_HANDLER).unwrap();
+    server.register(DRPC::PWrite as RPCType, &PWRITE_HANDLER).unwrap();
+    server.register(DRPC::Close as RPCType, &CLOSE_HANDLER).unwrap();
+    server.register(DRPC::Remove as RPCType, &REMOVE_HANDLER).unwrap();
+    server.register(DRPC::MkDir as RPCType, &MKDIR_HANDLER).unwrap();
 }
 
 fn server_from_stream(stream: TcpStream) {
     let mut server = Server::new(Box::new(stream));
     register_rpcs(&mut server);
-    // server_accept
+    // I dont think we need this, client registration in DiNOS
+    // is usually for allocation of kernel resources (shmem and dcm)
+    // server.add_client(&CLIENT_REGISTRAR); 
     server.run_server();
 }
 
 pub fn start_drpc_server_tcp(bind_addr: &str, port: u64) {
+    println!("Starting DRPC server on port {}", port);
     // TODO: bind to addr/port specified in parameters
     let listener = TcpListener::bind("127.0.0.1:8080")
         .expect("Failed to create TCP transport");
@@ -117,3 +121,59 @@ pub fn start_drpc_server_tcp(bind_addr: &str, port: u64) {
 }
 
 pub fn start_drpc_server_uds() {}
+
+////////////////////////////////// CLIENT //////////////////////////////////
+
+trait FxmarkRPC {
+    fn rpc_open(&self);
+    fn rpc_read(&self);
+    fn rpc_pread(&self);
+    fn rpc_write(&self);
+    fn rpc_pwrite(&self);
+    fn rpc_close(&self);
+    fn rpc_remove(&self);
+    fn rpc_mkdir(&self);
+}
+
+impl FxmarkRPC for Client {
+    fn rpc_open(&self) {
+        
+    }
+    
+    fn rpc_read(&self) {
+        
+    }
+    
+    fn rpc_pread(&self) {
+        
+    }
+
+    fn rpc_write(&self) {
+        
+    }
+
+    fn rpc_pwrite(&self) {
+        
+    }
+
+    fn rpc_close(&self) {
+        
+    }
+
+    fn rpc_remove(&self) {
+        
+    }
+
+    fn rpc_mkdir(&self) {
+        
+    }
+}
+
+// TODO: allow for various transpots/bind locations
+pub fn init_client() -> Client {
+    // TODO: make parameters for this, maybe wrap this function or
+    // leverage the ConnType enum to distinguish tcp/uds?
+    let stream = TcpStream::connect("127.0.0.1:8080");
+    let mut client = Client::new(Box::new(stream.unwrap()));
+    client
+}

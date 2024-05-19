@@ -33,6 +33,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "loc_server",
                     "emu_server",
                     "uds_server",
+                    "loc_server_drpc",
                 ]),
         )
         .arg(
@@ -186,6 +187,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     bench(bench_name.clone(), of, *wr, duration, &client_params);
                 }
             }
+        }
+        "loc_server_drpc" => {
+            let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());
+            start_drpc_server_tcp("", port);
+        }
+        "loc_client_drpc" => {
+
         }
         _ => panic!("Unknown mode!"),
     }
