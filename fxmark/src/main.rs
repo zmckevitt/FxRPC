@@ -34,6 +34,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     "emu_server",
                     "uds_server",
                     "loc_server_drpc",
+                    "loc_client_drpc",
                 ]),
         )
         .arg(
@@ -193,7 +194,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             start_drpc_server_tcp("", port);
         }
         "loc_client_drpc" => {
-
+            let mut client = init_client();
+            client.rpc_open();
         }
         _ => panic!("Unknown mode!"),
     }

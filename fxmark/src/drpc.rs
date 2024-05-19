@@ -38,6 +38,7 @@ pub(crate) enum DRPC {
 ////////////////////////////////// SERVER //////////////////////////////////
 
 fn handle_open(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
+    println!("Hello from RPC open!");
     Ok(())
 }
 
@@ -124,49 +125,31 @@ pub fn start_drpc_server_uds() {}
 
 ////////////////////////////////// CLIENT //////////////////////////////////
 
-trait FxmarkRPC {
-    fn rpc_open(&self);
-    fn rpc_read(&self);
-    fn rpc_pread(&self);
-    fn rpc_write(&self);
-    fn rpc_pwrite(&self);
-    fn rpc_close(&self);
-    fn rpc_remove(&self);
-    fn rpc_mkdir(&self);
+pub trait FxmarkRPC {
+    fn rpc_open(&mut self);
+    fn rpc_read(&mut self);
+    fn rpc_pread(&mut self);
+    fn rpc_write(&mut self);
+    fn rpc_pwrite(&mut self);
+    fn rpc_close(&mut self);
+    fn rpc_remove(&mut self);
+    fn rpc_mkdir(&mut self);
 }
 
 impl FxmarkRPC for Client {
-    fn rpc_open(&self) {
-        
+    fn rpc_open(&mut self) {
+        let data_in = [0u8; 32];
+        let mut data_out = [0u8; 32];
+        self.call(DRPC::Open as RPCType, &[&data_in], &mut [&mut data_out]); 
     }
     
-    fn rpc_read(&self) {
-        
-    }
-    
-    fn rpc_pread(&self) {
-        
-    }
-
-    fn rpc_write(&self) {
-        
-    }
-
-    fn rpc_pwrite(&self) {
-        
-    }
-
-    fn rpc_close(&self) {
-        
-    }
-
-    fn rpc_remove(&self) {
-        
-    }
-
-    fn rpc_mkdir(&self) {
-        
-    }
+    fn rpc_read(&mut self) {}
+    fn rpc_pread(&mut self) {}
+    fn rpc_write(&mut self) {}
+    fn rpc_pwrite(&mut self) {}
+    fn rpc_close(&mut self) {}
+    fn rpc_remove(&mut self) {}
+    fn rpc_mkdir(&mut self) {}
 }
 
 // TODO: allow for various transpots/bind locations
