@@ -195,7 +195,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         "loc_client_drpc" => {
             let mut client = init_client();
-            client.rpc_open();
+            client.rpc_open().expect("Open failed");
+            client.rpc_read().expect("Read failed");
+            client.rpc_pread().expect("PRead failed");
+            client.rpc_write().expect("Write failed");
+            client.rpc_close().expect("PWrite failed");
+            client.rpc_remove().expect("Remove failed");
+            client.rpc_mkdir().expect("MkDir failed");
+            println!("Done");
         }
         _ => panic!("Unknown mode!"),
     }
