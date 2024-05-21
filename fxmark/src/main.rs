@@ -195,7 +195,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
         "loc_client_drpc" => {
             let mut client = init_client();
-            client.rpc_open("", 0, 0).expect("Open failed");
+            client.rpc_open("OPEN_STRING", 0, 0).expect("Open failed");
             client
                 .rpc_read(0, &mut vec![0 as u8], 0)
                 .expect("Read failed");

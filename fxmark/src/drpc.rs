@@ -37,53 +37,131 @@ pub(crate) enum DRPC {
 
 ////////////////////////////////// SERVER //////////////////////////////////
 
+fn construct_ret(hdr: &mut RPCHeader, payload: &mut [u8]) {
+    hdr.msg_id = 0;
+    hdr.msg_type = 0;
+    hdr.msg_len = 0 as MsgLen;
+}
+
 fn handle_open(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    println!("Hello from RPC open!");
+    let msg_id: MsgId = hdr.msg_id;
+    let msg_type: RPCType = hdr.msg_type;
+    let msg_len: usize = hdr.msg_len as usize;
+    let path_str = std::str::from_utf8(&payload[0..msg_len]);
+    println!(
+        "Request with ID {:?}, type {:?}, len {:?}",
+        msg_id, msg_type, msg_len
+    );
+    println!("Payload: {:?}", path_str);
+    construct_ret(hdr, payload);
     Ok(())
 }
 
 fn handle_read(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    println!("Hello from RPC read!");
+    let msg_id: MsgId = hdr.msg_id;
+    let msg_type: RPCType = hdr.msg_type;
+    let msg_len: MsgLen = hdr.msg_len;
+    println!(
+        "Request with ID {:?}, type {:?}, len {:?}",
+        msg_id, msg_type, msg_len
+    );
+    construct_ret(hdr, payload);
     Ok(())
 }
 
 fn handle_pread(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    println!("Hello from RPC pread!");
+    let msg_id: MsgId = hdr.msg_id;
+    let msg_type: RPCType = hdr.msg_type;
+    let msg_len: MsgLen = hdr.msg_len;
+    println!(
+        "Request with ID {:?}, type {:?}, len {:?}",
+        msg_id, msg_type, msg_len
+    );
+    construct_ret(hdr, payload);
     Ok(())
 }
 
 fn handle_write(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    println!("Hello from RPC write!");
+    let msg_id: MsgId = hdr.msg_id;
+    let msg_type: RPCType = hdr.msg_type;
+    let msg_len: MsgLen = hdr.msg_len;
+    println!(
+        "Request with ID {:?}, type {:?}, len {:?}",
+        msg_id, msg_type, msg_len
+    );
+    construct_ret(hdr, payload);
     Ok(())
 }
 
 fn handle_pwrite(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    println!("Hello from RPC pwrite!");
+    let msg_id: MsgId = hdr.msg_id;
+    let msg_type: RPCType = hdr.msg_type;
+    let msg_len: MsgLen = hdr.msg_len;
+    println!(
+        "Request with ID {:?}, type {:?}, len {:?}",
+        msg_id, msg_type, msg_len
+    );
+    construct_ret(hdr, payload);
     Ok(())
 }
 
 fn handle_close(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    println!("Hello from RPC close!");
+    let msg_id: MsgId = hdr.msg_id;
+    let msg_type: RPCType = hdr.msg_type;
+    let msg_len: MsgLen = hdr.msg_len;
+    println!(
+        "Request with ID {:?}, type {:?}, len {:?}",
+        msg_id, msg_type, msg_len
+    );
+    construct_ret(hdr, payload);
     Ok(())
 }
 
 fn handle_remove(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    println!("Hello from RPC remove!");
+    let msg_id: MsgId = hdr.msg_id;
+    let msg_type: RPCType = hdr.msg_type;
+    let msg_len: MsgLen = hdr.msg_len;
+    println!(
+        "Request with ID {:?}, type {:?}, len {:?}",
+        msg_id, msg_type, msg_len
+    );
+    construct_ret(hdr, payload);
     Ok(())
 }
 
 fn handle_fsync(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    println!("Hello from RPC fsync!");
+    let msg_id: MsgId = hdr.msg_id;
+    let msg_type: RPCType = hdr.msg_type;
+    let msg_len: MsgLen = hdr.msg_len;
+    println!(
+        "Request with ID {:?}, type {:?}, len {:?}",
+        msg_id, msg_type, msg_len
+    );
+    construct_ret(hdr, payload);
     Ok(())
 }
 
 fn handle_mkdir(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    println!("Hello from RPC mkdir!");
+    let msg_id: MsgId = hdr.msg_id;
+    let msg_type: RPCType = hdr.msg_type;
+    let msg_len: MsgLen = hdr.msg_len;
+    println!(
+        "Request with ID {:?}, type {:?}, len {:?}",
+        msg_id, msg_type, msg_len
+    );
+    construct_ret(hdr, payload);
     Ok(())
 }
 
 fn handle_rmdir(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    println!("Hello from RPC rmdir!");
+    let msg_id: MsgId = hdr.msg_id;
+    let msg_type: RPCType = hdr.msg_type;
+    let msg_len: MsgLen = hdr.msg_len;
+    println!(
+        "Request with ID {:?}, type {:?}, len {:?}",
+        msg_id, msg_type, msg_len
+    );
+    construct_ret(hdr, payload);
     Ok(())
 }
 
@@ -131,13 +209,7 @@ fn server_from_stream(stream: TcpStream) {
     // I dont think we need this, client registration in DiNOS
     // is usually for allocation of kernel resources (shmem and dcm)
     // server.add_client(&CLIENT_REGISTRAR);
-    loop {
-        match server.try_handle() {
-            // Socket connection is broken
-            Err(_) => break,
-            _ => {}
-        }
-    }
+    server.run_server();
 }
 
 pub fn start_drpc_server_tcp(bind_addr: &str, port: u64) {
@@ -146,7 +218,7 @@ pub fn start_drpc_server_tcp(bind_addr: &str, port: u64) {
     let listener = TcpListener::bind("127.0.0.1:8080").expect("Failed to create TCP transport");
 
     for stream in listener.incoming() {
-        server_from_stream(stream.unwrap());
+        std::thread::spawn(move || server_from_stream(stream.unwrap()));
     }
 }
 
@@ -180,8 +252,13 @@ pub trait FxRPC {
 impl FxRPC for Client {
     fn rpc_open(&mut self, path: &str, flags: i32, mode: u32) -> Result<(), RPCError> {
         let data_in = [0u8; 32];
-        let mut data_out = [0u8; 32];
-        self.call(DRPC::Open as RPCType, &[&data_in], &mut [&mut data_out])?;
+        let mut data_out = [0u8; 1];
+        println!("Path: {}", path);
+        self.call(
+            DRPC::Open as RPCType,
+            &[path.as_bytes()],
+            &mut [&mut data_out],
+        )?;
         Ok(())
     }
 
