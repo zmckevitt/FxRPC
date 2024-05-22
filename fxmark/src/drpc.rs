@@ -3,6 +3,7 @@ use rpc::rpc::*;
 use rpc::server::{RPCHandler, Server};
 use rpc::transport::stdtcp::*;
 use std::net::{TcpListener, TcpStream};
+use std::sync::{Arc, Mutex};
 
 ////////////////////////////// FS RPC Hdrs  //////////////////////////////
 
@@ -204,7 +205,8 @@ fn register_rpcs(server: &mut Server) {
 }
 
 fn server_from_stream(stream: TcpStream) {
-    let mut server = Server::new(Box::new(stream));
+    let transport = StdTCP { stream: Arc::new(Mutex::new(stream)) };
+    let mut server = Server::new(Box::new(transport));
     register_rpcs(&mut server);
     // I dont think we need this, client registration in DiNOS
     // is usually for allocation of kernel resources (shmem and dcm)
@@ -328,7 +330,8 @@ impl FxRPC for Client {
 pub fn init_client() -> Client {
     // TODO: make parameters for this, maybe wrap this function or
     // leverage the ConnType enum to distinguish tcp/uds?
-    let stream = TcpStream::connect("127.0.0.1:8080");
-    let mut client = Client::new(Box::new(stream.unwrap()));
+    let stream = TcpStream::connect("127.0.0.1:8080").unwrap();
+    let transport = StdTCP { stream: Arc::new(Mutex::new(stream)) };
+    let mut client = Client::new(Box::new(transport));
     client
 }
