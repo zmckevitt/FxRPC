@@ -197,4 +197,3 @@ pub fn start_drpc_server_tcp(bind_addr: &str, port: u64) {
 }
 
 pub fn start_drpc_server_uds() {}
-

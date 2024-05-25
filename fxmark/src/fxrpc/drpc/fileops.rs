@@ -34,7 +34,6 @@ pub(crate) enum DRPC {
     MkDir = 11,
 }
 
-
 pub fn pack_str<const output_size: usize>(input: &str) -> [u8; output_size] {
     let bytes = input.as_bytes();
     let mut output = [0; output_size];

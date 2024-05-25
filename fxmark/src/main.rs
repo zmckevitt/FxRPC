@@ -7,12 +7,11 @@ use std::fs::{remove_file, OpenOptions};
 use std::io::Write;
 
 mod fxmark;
-use crate::fxmark::{bench, OUTPUT_FILE};
 use crate::fxmark::utils::topology::MachineTopology;
+use crate::fxmark::{bench, OUTPUT_FILE};
 
 mod fxrpc;
-use crate::fxrpc::grpc::*;
-use crate::fxrpc::drpc::*;
+use crate::fxrpc::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args();
