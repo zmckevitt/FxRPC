@@ -391,7 +391,7 @@ fn libc_mkdir(dirname: &str, mode: u32) -> Response<syscalls::SyscallResponse> {
     let dir_path = format!("{}{}{}", FS_PATH, dirname, char::from(0));
     let res;
     unsafe {
-        res = mkdir(dir_path.as_ptr() as *const i8, mode);
+        res = mkdir(dir_path.as_ptr() as *const i8, mode.try_into().unwrap());
     }
     Response::new(syscalls::SyscallResponse {
         result: res,

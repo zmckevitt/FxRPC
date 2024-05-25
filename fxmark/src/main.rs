@@ -2,17 +2,17 @@
     gRPC server to execute system calls.
     Zack McKevitt - 2023
 */
-
 use clap::{crate_version, value_t, App, Arg};
 use std::fs::{remove_file, OpenOptions};
 use std::io::Write;
 
 mod fxmark;
 use crate::fxmark::{bench, OUTPUT_FILE};
-
 use crate::fxmark::utils::topology::MachineTopology;
 
-use fxmark_grpc::*;
+mod fxrpc;
+use crate::fxrpc::grpc::*;
+use crate::fxrpc::drpc::*;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     let args = std::env::args();

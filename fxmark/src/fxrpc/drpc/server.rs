@@ -1,40 +1,10 @@
-use rpc::client::Client;
 use rpc::rpc::*;
 use rpc::server::{RPCHandler, Server};
 use rpc::transport::stdtcp::*;
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
-////////////////////////////// FS RPC Hdrs  //////////////////////////////
-
-#[derive(Debug, Eq, PartialEq, PartialOrd, Clone, Copy)]
-#[repr(u8)]
-pub(crate) enum DRPC {
-    /// Create a file
-    Create = 0,
-    /// Open a file
-    Open = 1,
-    /// Read from a file
-    Read = 2,
-    /// Read from a file from the given offset
-    PRead = 3,
-    /// Write to a file
-    Write = 4,
-    /// Write to a file
-    PWrite = 5,
-    /// Close an opened file.
-    Close = 6,
-    /// Get the information related to the file.
-    GetInfo = 7,
-    /// Remove the file
-    Remove = 8,
-    /// Write to a file without going into NR.
-    WriteDirect = 9,
-    /// Rename a file.
-    FileRename = 10,
-    /// Create a directory.
-    MkDir = 11,
-}
+use crate::fxrpc::drpc::fileops::*;
 
 ////////////////////////////////// SERVER //////////////////////////////////
 
@@ -205,7 +175,9 @@ fn register_rpcs(server: &mut Server) {
 }
 
 fn server_from_stream(stream: TcpStream) {
-    let transport = StdTCP { stream: Arc::new(Mutex::new(stream)) };
+    let transport = StdTCP {
+        stream: Arc::new(Mutex::new(stream)),
+    };
     let mut server = Server::new(Box::new(transport));
     register_rpcs(&mut server);
     // I dont think we need this, client registration in DiNOS
@@ -226,112 +198,3 @@ pub fn start_drpc_server_tcp(bind_addr: &str, port: u64) {
 
 pub fn start_drpc_server_uds() {}
 
-////////////////////////////////// CLIENT //////////////////////////////////
-
-pub trait FxRPC {
-    fn rpc_open(&mut self, path: &str, flags: i32, mode: u32) -> Result<(), RPCError>;
-    fn rpc_read(&mut self, fd: i32, page: &mut Vec<u8>, size: usize) -> Result<(), RPCError>;
-    fn rpc_pread(
-        &mut self,
-        fd: i32,
-        page: &mut Vec<u8>,
-        size: usize,
-        offset: i64,
-    ) -> Result<(), RPCError>;
-    fn rpc_write(&mut self, fd: i32, page: &Vec<u8>, size: usize) -> Result<(), RPCError>;
-    fn rpc_pwrite(
-        &mut self,
-        fd: i32,
-        page: &Vec<u8>,
-        size: usize,
-        offset: i64,
-    ) -> Result<(), RPCError>;
-    fn rpc_close(&mut self, fd: i32) -> Result<(), RPCError>;
-    fn rpc_remove(&mut self, path: &str) -> Result<(), RPCError>;
-    fn rpc_mkdir(&mut self, path: &str, mode: u32) -> Result<(), RPCError>;
-}
-
-impl FxRPC for Client {
-    fn rpc_open(&mut self, path: &str, flags: i32, mode: u32) -> Result<(), RPCError> {
-        let data_in = [0u8; 32];
-        let mut data_out = [0u8; 1];
-        println!("Path: {}", path);
-        self.call(
-            DRPC::Open as RPCType,
-            &[path.as_bytes()],
-            &mut [&mut data_out],
-        )?;
-        Ok(())
-    }
-
-    fn rpc_read(&mut self, fd: i32, page: &mut Vec<u8>, size: usize) -> Result<(), RPCError> {
-        let data_in = [0u8; 32];
-        let mut data_out = [0u8; 32];
-        self.call(DRPC::Read as RPCType, &[&data_in], &mut [&mut data_out])?;
-        Ok(())
-    }
-
-    fn rpc_pread(
-        &mut self,
-        fd: i32,
-        page: &mut Vec<u8>,
-        size: usize,
-        offset: i64,
-    ) -> Result<(), RPCError> {
-        let data_in = [0u8; 32];
-        let mut data_out = [0u8; 32];
-        self.call(DRPC::PRead as RPCType, &[&data_in], &mut [&mut data_out])?;
-        Ok(())
-    }
-
-    fn rpc_write(&mut self, fd: i32, page: &Vec<u8>, size: usize) -> Result<(), RPCError> {
-        let data_in = [0u8; 32];
-        let mut data_out = [0u8; 32];
-        self.call(DRPC::Write as RPCType, &[&data_in], &mut [&mut data_out])?;
-        Ok(())
-    }
-
-    fn rpc_pwrite(
-        &mut self,
-        fd: i32,
-        page: &Vec<u8>,
-        size: usize,
-        offset: i64,
-    ) -> Result<(), RPCError> {
-        let data_in = [0u8; 32];
-        let mut data_out = [0u8; 32];
-        self.call(DRPC::PWrite as RPCType, &[&data_in], &mut [&mut data_out])?;
-        Ok(())
-    }
-
-    fn rpc_close(&mut self, fd: i32) -> Result<(), RPCError> {
-        let data_in = [0u8; 32];
-        let mut data_out = [0u8; 32];
-        self.call(DRPC::Close as RPCType, &[&data_in], &mut [&mut data_out])?;
-        Ok(())
-    }
-
-    fn rpc_remove(&mut self, path: &str) -> Result<(), RPCError> {
-        let data_in = [0u8; 32];
-        let mut data_out = [0u8; 32];
-        self.call(DRPC::Remove as RPCType, &[&data_in], &mut [&mut data_out])?;
-        Ok(())
-    }
-
-    fn rpc_mkdir(&mut self, path: &str, mode: u32) -> Result<(), RPCError> {
-        let data_in = [0u8; 32];
-        let mut data_out = [0u8; 32];
-        self.call(DRPC::MkDir as RPCType, &[&data_in], &mut [&mut data_out])?;
-        Ok(())
-    }
-}
-
-// TODO: allow for various transpots/bind locations
-pub fn init_client() -> Client {
-    // TODO: make parameters for this, maybe wrap this function or
-    // leverage the ConnType enum to distinguish tcp/uds?
-    let stream = TcpStream::connect("127.0.0.1:8080").unwrap();
-    let transport = StdTCP { stream: Arc::new(Mutex::new(stream)) };
-    let mut client = Client::new(Box::new(transport));
-    client
-}

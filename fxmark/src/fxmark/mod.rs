@@ -28,7 +28,7 @@ use utils::topology::*;
 mod mix;
 use crate::fxmark::mix::MIX;
 
-use fxmark_grpc::{ClientParams, ConnType, LogMode};
+use crate::fxrpc::grpc::{ClientParams, ConnType, LogMode};
 
 const PAGE_SIZE: usize = 1008;
 

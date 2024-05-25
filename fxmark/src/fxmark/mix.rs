@@ -11,7 +11,7 @@ use core::sync::atomic::{AtomicUsize, Ordering};
 use libc::{O_CREAT, O_RDWR, S_IRWXU};
 use x86::random::rdrand16;
 
-use fxmark_grpc::*;
+use crate::fxrpc::grpc::*;
 
 #[derive(Clone)]
 pub struct MIX {
@@ -55,7 +55,7 @@ impl Bench for MIX {
         *self.open_files.borrow_mut() = open_files;
         for file_num in 0..open_files {
             let filename = format!("file{}.txt", file_num);
-            let fd = { client.grpc_open(&filename, O_RDWR | O_CREAT, S_IRWXU) }
+            let fd = { client.grpc_open(&filename, O_RDWR | O_CREAT, S_IRWXU.into()) }
                 .expect("FileOpen syscall failed");
 
             let ret = {
