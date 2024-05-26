@@ -13,8 +13,7 @@ use crate::fxmark::{bench, OUTPUT_FILE};
 mod fxrpc;
 use crate::fxrpc::*;
 
-fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let args = std::env::args();
+fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
     let matches = App::new("Fxmark gRPC benchmark")
         .version(crate_version!())
         .author("Jon Gjengset, Gerd Zellweger, Zack McKevitt")
@@ -88,6 +87,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .takes_value(true),
         )
         .get_matches_from(args);
+    matches
+}
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let args = std::env::args();
+    let matches = parseargs(args);
 
     let mode = value_t!(matches, "mode", String).unwrap();
     let bench_name = String::from("mix");

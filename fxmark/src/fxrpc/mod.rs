@@ -24,6 +24,12 @@ pub enum ConnType {
     UDS,
 }
 
+#[derive(Clone, Copy)]
+pub enum RPCType {
+    GRPC,
+    DRPC,
+}
+
 #[derive(Clone)]
 pub struct ClientParams {
     pub cid: usize,
