@@ -32,6 +32,8 @@ pub(crate) enum DRPC {
     FileRename = 10,
     /// Create a directory.
     MkDir = 11,
+    /// Remove a directory.
+    RmDir = 12,
 }
 
 pub fn pack_str<const output_size: usize>(input: &str) -> [u8; output_size] {

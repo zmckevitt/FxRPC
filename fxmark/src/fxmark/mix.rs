@@ -55,12 +55,12 @@ impl Bench for MIX {
         *self.open_files.borrow_mut() = open_files;
         for file_num in 0..open_files {
             let filename = format!("file{}.txt", file_num);
-            let fd = { client.grpc_open(&filename, O_RDWR | O_CREAT, S_IRWXU.into()) }
+            let fd = { client.rpc_open(&filename, O_RDWR | O_CREAT, S_IRWXU.into()) }
                 .expect("FileOpen syscall failed");
 
             let ret = {
                 client
-                    .grpc_pwrite(fd, &self.page, PAGE_SIZE, self.size)
+                    .rpc_pwrite(fd, &self.page, PAGE_SIZE, self.size)
                     .expect("FileWriteAt syscall failed")
             };
             assert_eq!(ret, PAGE_SIZE as i32);
@@ -95,7 +95,7 @@ impl Bench for MIX {
 
         {
             client
-                .grpc_pwrite(fd as i32, &page, PAGE_SIZE, self.size)
+                .rpc_pwrite(fd as i32, &page, PAGE_SIZE, self.size)
                 .expect("can't write_at");
         }
 
@@ -119,7 +119,7 @@ impl Bench for MIX {
 
                     if random_num as usize % 100 < write_ratio {
                         if client
-                            .grpc_pwrite(fd as i32, &page, PAGE_SIZE, offset as i64)
+                            .rpc_pwrite(fd as i32, &page, PAGE_SIZE, offset as i64)
                             .expect("FileWriteAt syscall failed")
                             != PAGE_SIZE as i32
                         {
@@ -127,7 +127,7 @@ impl Bench for MIX {
                         }
                     } else {
                         if client
-                            .grpc_pread(fd as i32, &mut page, PAGE_SIZE, offset as i64)
+                            .rpc_pread(fd as i32, &mut page, PAGE_SIZE, offset as i64)
                             .expect("FileReadAt syscall failed")
                             != PAGE_SIZE as i32
                         {
@@ -155,7 +155,7 @@ impl Bench for MIX {
             for i in 0..*self.open_files.borrow() {
                 let fd = self.fds.borrow()[i];
                 client
-                    .grpc_close(fd as i32)
+                    .rpc_close(fd as i32)
                     .expect("FileClose syscall failed");
             }
         }

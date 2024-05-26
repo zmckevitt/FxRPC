@@ -172,6 +172,9 @@ fn register_rpcs(server: &mut Server) {
     server
         .register(DRPC::MkDir as RPCType, &MKDIR_HANDLER)
         .unwrap();
+    server
+        .register(DRPC::RmDir as RPCType, &RMDIR_HANDLER)
+        .unwrap();
 }
 
 fn server_from_stream(stream: TcpStream) {
