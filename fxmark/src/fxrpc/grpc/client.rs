@@ -99,7 +99,7 @@ impl FxRPC for BlockingClient {
             size: size as u32,
             offset: 0,
         });
-        
+
         let response = self
             .rt
             .as_ref()
@@ -123,7 +123,7 @@ impl FxRPC for BlockingClient {
             size: size as u32,
             offset: offset,
         });
-        
+
         let response = self
             .rt
             .as_ref()

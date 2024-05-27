@@ -12,7 +12,12 @@ use crate::fxrpc::FxRPC;
 // TODO: ERROR HANDLING
 
 impl FxRPC for Client {
-    fn rpc_open(&mut self, path: &str, flags: i32, mode: u32) -> Result<i32, Box<dyn std::error::Error>> {
+    fn rpc_open(
+        &mut self,
+        path: &str,
+        flags: i32,
+        mode: u32,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
         let request = OpenReq {
             path: pack_str::<{ PATH_LEN }>(path),
             flags: flags,
@@ -29,7 +34,12 @@ impl FxRPC for Client {
         Ok(0)
     }
 
-    fn rpc_read(&mut self, fd: i32, page: &mut Vec<u8>, size: usize) -> Result<i32, Box<dyn std::error::Error>> {
+    fn rpc_read(
+        &mut self,
+        fd: i32,
+        page: &mut Vec<u8>,
+        size: usize,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
         let data_in = [0u8; 32];
         let mut data_out = [0u8; 32];
         self.call(DRPC::Read as RPCType, &[&data_in], &mut [&mut data_out]);
@@ -49,7 +59,12 @@ impl FxRPC for Client {
         Ok(0)
     }
 
-    fn rpc_write(&mut self, fd: i32, page: &Vec<u8>, size: usize) -> Result<i32, Box<dyn std::error::Error>> {
+    fn rpc_write(
+        &mut self,
+        fd: i32,
+        page: &Vec<u8>,
+        size: usize,
+    ) -> Result<i32, Box<dyn std::error::Error>> {
         let data_in = [0u8; 32];
         let mut data_out = [0u8; 32];
         self.call(DRPC::Write as RPCType, &[&data_in], &mut [&mut data_out]);
@@ -89,7 +104,7 @@ impl FxRPC for Client {
         self.call(DRPC::MkDir as RPCType, &[&data_in], &mut [&mut data_out]);
         Ok(0)
     }
-    
+
     fn rpc_rmdir(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
         let data_in = [0u8; 32];
         let mut data_out = [0u8; 32];
@@ -99,7 +114,7 @@ impl FxRPC for Client {
 }
 
 // TODO: allow for various transpots/bind locations
-pub fn init_client() -> Client {
+pub fn init_client_drpc() -> Client {
     // TODO: make parameters for this, maybe wrap this function or
     // leverage the ConnType enum to distinguish tcp/uds?
     let stream = TcpStream::connect("127.0.0.1:8080").unwrap();

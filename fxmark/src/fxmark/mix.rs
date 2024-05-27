@@ -45,8 +45,8 @@ impl Default for MIX {
 impl Bench for MIX {
     fn init(&self, cores: Vec<u64>, open_files: usize, conn_type: ConnType) {
         let mut client = match conn_type {
-            ConnType::TCP_LOCAL => BlockingClient::connect_tcp("http://[::1]:8080").unwrap(),
-            ConnType::TCP_REMOTE => BlockingClient::connect_tcp("http://172.31.0.1:8080").unwrap(),
+            ConnType::TcpLocal => BlockingClient::connect_tcp("http://[::1]:8080").unwrap(),
+            ConnType::TcpRemote => BlockingClient::connect_tcp("http://172.31.0.1:8080").unwrap(),
             ConnType::UDS => BlockingClient::connect_uds().unwrap(),
         };
 
@@ -77,8 +77,8 @@ impl Bench for MIX {
         conn_type: ConnType,
     ) -> Vec<usize> {
         let mut client = match conn_type {
-            ConnType::TCP_LOCAL => BlockingClient::connect_tcp("http://[::1]:8080").unwrap(),
-            ConnType::TCP_REMOTE => BlockingClient::connect_tcp("http://172.31.0.1:8080").unwrap(),
+            ConnType::TcpLocal => BlockingClient::connect_tcp("http://[::1]:8080").unwrap(),
+            ConnType::TcpRemote => BlockingClient::connect_tcp("http://172.31.0.1:8080").unwrap(),
             ConnType::UDS => BlockingClient::connect_uds().unwrap(),
         };
 

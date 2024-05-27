@@ -86,6 +86,14 @@ fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
                 .help("Cores per client")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("rpc")
+                .long("rpc")
+                .required(true)
+                .help("Dinos RPC (drpc) or gRPC (grpc)")
+                .takes_value(true)
+                .possible_values(&["drpc", "grpc"]),
+        )
         .get_matches_from(args);
     matches
 }
@@ -153,11 +161,17 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             };
 
             let conn_type = if mode == "loc_client" {
-                ConnType::TCP_LOCAL
+                ConnType::TcpLocal
             } else if mode == "emu_client" {
-                ConnType::TCP_REMOTE
+                ConnType::TcpRemote
             } else {
                 ConnType::UDS
+            };
+
+            let rpc_type = if value_t!(matches, "rpc", String).unwrap() == "grpc" {
+                RPCType::GRPC
+            } else {
+                RPCType::DRPC
             };
 
             let client_params = ClientParams {
@@ -166,6 +180,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 ccores: ccores,
                 log_mode: log_mode,
                 conn_type: conn_type,
+                rpc_type: rpc_type,
             };
 
             let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients\n";
@@ -198,7 +213,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             start_drpc_server_tcp("", port);
         }
         "loc_client_drpc" => {
-            let mut client = init_client();
+            let mut client = init_client(ConnType::TcpLocal, RPCType::DRPC);
             client.rpc_open("OPEN_STRING", 0, 0).expect("Open failed");
             client
                 .rpc_read(0, &mut vec![0 as u8], 0)
