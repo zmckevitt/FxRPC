@@ -28,7 +28,7 @@ use utils::topology::*;
 mod mix;
 use crate::fxmark::mix::MIX;
 
-use crate::fxrpc::grpc::{ClientParams, ConnType, LogMode};
+use crate::fxrpc::{ClientParams, ConnType, LogMode, RPCType};
 
 const PAGE_SIZE: usize = 1008;
 
@@ -80,7 +80,7 @@ impl FromStr for ARGs {
 }
 
 pub trait Bench {
-    fn init(&self, cores: Vec<u64>, open_files: usize, conn_type: ConnType);
+    fn init(&self, cores: Vec<u64>, open_files: usize, conn_type: ConnType, rpc_type: RPCType);
     fn run(
         &self,
         barrier: &AtomicUsize,
@@ -88,6 +88,7 @@ pub trait Bench {
         core: usize,
         write_ratio: usize,
         conn_type: ConnType,
+        rpc_type: RPCType,
     ) -> Vec<usize>;
 }
 
@@ -175,6 +176,7 @@ where
             core_id,
             write_ratio,
             client_params.conn_type,
+            client_params.rpc_type,
         );
 
         let mut csv_file = if client_params.log_mode == LogMode::CSV {
@@ -269,8 +271,12 @@ pub fn bench(
 
                 for core_id in cores.clone() {
                     let mb = Arc::new(microbench.clone());
-                    mb.bench
-                        .init(cores.clone(), open_files, client_params.conn_type);
+                    mb.bench.init(
+                        cores.clone(),
+                        open_files,
+                        client_params.conn_type,
+                        client_params.rpc_type,
+                    );
 
                     let bench_duration = duration.clone();
                     let params = (*client_params).clone();

@@ -43,12 +43,8 @@ impl Default for MIX {
 }
 
 impl Bench for MIX {
-    fn init(&self, cores: Vec<u64>, open_files: usize, conn_type: ConnType) {
-        let mut client = match conn_type {
-            ConnType::TcpLocal => BlockingClient::connect_tcp("http://[::1]:8080").unwrap(),
-            ConnType::TcpRemote => BlockingClient::connect_tcp("http://172.31.0.1:8080").unwrap(),
-            ConnType::UDS => BlockingClient::connect_uds().unwrap(),
-        };
+    fn init(&self, cores: Vec<u64>, open_files: usize, conn_type: ConnType, rpc_type: RPCType) {
+        let mut client = init_client(conn_type, rpc_type);
 
         *self.cores.borrow_mut() = cores.len();
         *self.min_core.borrow_mut() = *cores.iter().min().unwrap() as usize;
@@ -75,12 +71,9 @@ impl Bench for MIX {
         core: usize,
         write_ratio: usize,
         conn_type: ConnType,
+        rpc_type: RPCType,
     ) -> Vec<usize> {
-        let mut client = match conn_type {
-            ConnType::TcpLocal => BlockingClient::connect_tcp("http://[::1]:8080").unwrap(),
-            ConnType::TcpRemote => BlockingClient::connect_tcp("http://172.31.0.1:8080").unwrap(),
-            ConnType::UDS => BlockingClient::connect_uds().unwrap(),
-        };
+        let mut client = init_client(conn_type, rpc_type);
 
         let mut iops_per_second = Vec::with_capacity(duration as usize);
 

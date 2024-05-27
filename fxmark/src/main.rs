@@ -11,6 +11,8 @@ use crate::fxmark::utils::topology::MachineTopology;
 use crate::fxmark::{bench, OUTPUT_FILE};
 
 mod fxrpc;
+use crate::fxrpc::ConnType;
+use crate::fxrpc::RPCType;
 use crate::fxrpc::*;
 
 fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
@@ -22,18 +24,25 @@ fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
             Arg::with_name("mode")
                 .long("mode")
                 .required(true)
-                .help("loc_client, emu_client, uds_client, loc_server, emu_server, or uds_server")
+                .help("client or server")
                 .takes_value(true)
-                .possible_values(&[
-                    "loc_client",
-                    "emu_client",
-                    "uds_client",
-                    "loc_server",
-                    "emu_server",
-                    "uds_server",
-                    "loc_server_drpc",
-                    "loc_client_drpc",
-                ]),
+                .possible_values(&["client", "server"]),
+        )
+        .arg(
+            Arg::with_name("rpc")
+                .long("rpc")
+                .required(true)
+                .help("Dinos RPC (drpc) or gRPC (grpc)")
+                .takes_value(true)
+                .possible_values(&["drpc", "grpc"]),
+        )
+        .arg(
+            Arg::with_name("transport")
+                .long("transport")
+                .required(true)
+                .help("TCP Local (tcplocal) TCP Remote (tcpremote) UDS (uds)")
+                .takes_value(true)
+                .possible_values(&["tcplocal", "tcpremote", "uds"]),
         )
         .arg(
             Arg::with_name("port")
@@ -86,14 +95,6 @@ fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
                 .help("Cores per client")
                 .takes_value(true),
         )
-        .arg(
-            Arg::with_name("rpc")
-                .long("rpc")
-                .required(true)
-                .help("Dinos RPC (drpc) or gRPC (grpc)")
-                .takes_value(true)
-                .possible_values(&["drpc", "grpc"]),
-        )
         .get_matches_from(args);
     matches
 }
@@ -103,24 +104,28 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = parseargs(args);
 
     let mode = value_t!(matches, "mode", String).unwrap();
+    let conn_type: ConnType = {
+        match value_t!(matches, "transport", String).unwrap().as_str() {
+            "tcplocal" => ConnType::TcpLocal,
+            "tcpremote" => ConnType::TcpRemote,
+            "uds" => ConnType::UDS,
+            &_ => panic!("Unknown ConnType!"),
+        }
+    };
+    let rpc_type: RPCType = {
+        match value_t!(matches, "rpc", String).unwrap().as_str() {
+            "grpc" => RPCType::GRPC,
+            "drpc" => RPCType::DRPC,
+            &_ => panic!("Unknown RPCType!"),
+        }
+    };
     let bench_name = String::from("mix");
 
     match mode.as_str() {
-        "uds_server" => {
-            // Must unwrap as function is asynchronous
-            start_rpc_server_uds(UDS_PATH).unwrap()
+        "server" => {
+            run_server(conn_type, rpc_type);
         }
-        "loc_server" | "emu_server" => {
-            let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());
-            let bind_addr = if mode == "loc_server" {
-                "[::1]"
-            } else {
-                "172.31.0.1"
-            };
-
-            start_rpc_server_tcp(bind_addr, port)
-        }
-        "loc_client" | "emu_client" | "uds_client" => {
+        "client" => {
             let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();
             let wratios: Vec<usize> = wratios
                 .into_iter()
@@ -134,19 +139,19 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             let duration = value_t!(matches, "duration", u64).unwrap_or_else(|e| e.exit());
 
-            let cid = if mode != "loc_client" {
+            let cid = if conn_type != ConnType::TcpLocal {
                 value_t!(matches, "cid", usize).unwrap_or_else(|e| e.exit())
             } else {
                 0
             };
 
-            let nclients = if mode != "loc_client" {
+            let nclients = if conn_type != ConnType::TcpLocal {
                 value_t!(matches, "nclients", usize).unwrap_or_else(|e| e.exit())
             } else {
                 1
             };
 
-            let ccores = if mode == "loc_client" {
+            let ccores = if conn_type == ConnType::TcpLocal {
                 let topology = MachineTopology::new();
                 let max_cores = topology.cores() / 2;
                 max_cores
@@ -154,24 +159,10 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 value_t!(matches, "ccores", usize).unwrap_or_else(|e| e.exit())
             };
 
-            let log_mode = if mode == "loc_client" {
+            let log_mode = if conn_type == ConnType::TcpLocal {
                 LogMode::CSV
             } else {
                 LogMode::STDOUT
-            };
-
-            let conn_type = if mode == "loc_client" {
-                ConnType::TcpLocal
-            } else if mode == "emu_client" {
-                ConnType::TcpRemote
-            } else {
-                ConnType::UDS
-            };
-
-            let rpc_type = if value_t!(matches, "rpc", String).unwrap() == "grpc" {
-                RPCType::GRPC
-            } else {
-                RPCType::DRPC
             };
 
             let client_params = ClientParams {
@@ -196,7 +187,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                     assert!(r.is_ok());
                 }
                 LogMode::STDOUT => {
-                    if mode != "uds_client" {
+                    if conn_type != ConnType::UDS {
                         print!("{}", row);
                     }
                 }
@@ -208,6 +199,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 }
             }
         }
+
+        /// For debugging only!
+
         "loc_server_drpc" => {
             let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());
             start_drpc_server_tcp("", port);

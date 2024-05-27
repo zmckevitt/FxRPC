@@ -16,7 +16,7 @@ pub enum LogMode {
     STDOUT,
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialEq)]
 pub enum ConnType {
     TcpLocal,
     TcpRemote,
