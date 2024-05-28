@@ -3,6 +3,8 @@ pub mod grpc;
 pub use crate::fxrpc::drpc::*;
 pub use crate::fxrpc::grpc::*;
 
+pub use crate::fxmark::PAGE_SIZE;
+
 type StdError = Box<dyn std::error::Error + Send + Sync + 'static>;
 type Result<T, E = StdError> = ::std::result::Result<T, E>;
 

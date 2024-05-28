@@ -1,9 +1,5 @@
+use crate::fxrpc::PAGE_SIZE;
 use abomonation::Abomonation;
-
-pub const PATH_LEN: usize = 128;
-pub const PAGE_LEN: usize = 8192;
-// const WR_METADATA_SZ: usize =
-//     std::mem::size_of::<i32>() - std::mem::size_of::<usize>() - std::mem::size_of::<i64>();
 
 ////////////////////////////// FS RPC Hdrs  //////////////////////////////
 
@@ -88,3 +84,11 @@ pub struct MkdirReq {
 }
 
 unsafe_abomonate!(MkdirReq : path, mode);
+
+pub struct Response {
+    pub result: i32,
+    pub size: usize,
+    pub page: Vec<u8>, // only for read responses
+}
+
+unsafe_abomonate!(Response : result, size, page);

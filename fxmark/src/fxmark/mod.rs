@@ -30,7 +30,7 @@ use crate::fxmark::mix::MIX;
 
 use crate::fxrpc::{ClientParams, ConnType, LogMode, RPCType};
 
-const PAGE_SIZE: usize = 1008;
+pub const PAGE_SIZE: usize = 1024;
 
 static POOR_MANS_BARRIER: AtomicUsize = AtomicUsize::new(0);
 

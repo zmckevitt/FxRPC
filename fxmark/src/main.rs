@@ -13,7 +13,7 @@ mod fxmark;
 use crate::fxmark::utils::topology::MachineTopology;
 use crate::fxmark::{bench, OUTPUT_FILE};
 
-mod fxrpc;
+pub mod fxrpc;
 use crate::fxrpc::ConnType;
 use crate::fxrpc::RPCType;
 use crate::fxrpc::*;
@@ -218,7 +218,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 .rpc_pread(0, &mut vec![0 as u8], 0, 0)
                 .expect("PRead failed");
             client
-                .rpc_write(0, &mut vec![0 as u8], 0)
+                .rpc_write(0, &"HELLO WORLD!".as_bytes().to_vec(), 0)
                 .expect("Write failed");
             client
                 .rpc_pwrite(0, &mut vec![0 as u8], 0, 0)

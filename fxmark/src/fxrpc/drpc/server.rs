@@ -10,10 +10,27 @@ use crate::fxrpc::drpc::fileops::*;
 
 ////////////////////////////////// SERVER //////////////////////////////////
 
-fn construct_ret(hdr: &mut RPCHeader, payload: &mut [u8]) {
+fn construct_ret(
+    hdr: &mut RPCHeader,
+    mut payload: &mut [u8],
+    result: i32,
+    size: usize,
+    page: Vec<u8>,
+) {
+    let response = Response {
+        result: result,
+        size: size,
+        page: page,
+    };
+
+    let mut bytes = Vec::new();
+    unsafe { encode(&response, &mut bytes) }.expect("Failed to encode response");
+
+    payload[0..bytes.len()].copy_from_slice(&bytes);
+
     hdr.msg_id = 0;
     hdr.msg_type = 0;
-    hdr.msg_len = 0 as MsgLen;
+    hdr.msg_len = (bytes.len() * std::mem::size_of::<u8>()) as MsgLen;
 }
 
 fn handle_open(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
@@ -29,15 +46,11 @@ fn handle_open(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> 
     let path = std::str::from_utf8(&path).unwrap();
 
     println!(
-        "Open path: {:?}, flags: {:?}, modes: {:?}",
+        "Open request - path: {:?}, flags: {:?}, modes: {:?}",
         path, flags, modes
     );
 
-    println!(
-        "Request with ID {:?}, type {:?}, len {:?}",
-        msg_id, msg_type, msg_len
-    );
-    construct_ret(hdr, payload);
+    construct_ret(hdr, payload, 0, 0, vec![]);
     Ok(())
 }
 
@@ -45,11 +58,18 @@ fn handle_read(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> 
     let msg_id: MsgId = hdr.msg_id;
     let msg_type: RPCType = hdr.msg_type;
     let msg_len: MsgLen = hdr.msg_len;
+
+    let (fd, size, offset) = match unsafe { decode::<ReadReq>(payload) } {
+        Some((req, _)) => (req.fd, req.size, req.offset),
+        None => panic!("Cannot decode read request!"),
+    };
+
     println!(
-        "Request with ID {:?}, type {:?}, len {:?}",
-        msg_id, msg_type, msg_len
+        "Read request - fd: {:?}, size: {:?}, offset: {:?}",
+        fd, size, offset
     );
-    construct_ret(hdr, payload);
+
+    construct_ret(hdr, payload, 0, 12, "Hello World!".as_bytes().to_vec());
     Ok(())
 }
 
@@ -57,11 +77,18 @@ fn handle_pread(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
     let msg_id: MsgId = hdr.msg_id;
     let msg_type: RPCType = hdr.msg_type;
     let msg_len: MsgLen = hdr.msg_len;
+
+    let (fd, size, offset) = match unsafe { decode::<ReadReq>(payload) } {
+        Some((req, _)) => (req.fd, req.size, req.offset),
+        None => panic!("Cannot decode pread request!"),
+    };
+
     println!(
-        "Request with ID {:?}, type {:?}, len {:?}",
-        msg_id, msg_type, msg_len
+        "PRead request - fd: {:?}, size: {:?}, offset: {:?}",
+        fd, size, offset
     );
-    construct_ret(hdr, payload);
+
+    construct_ret(hdr, payload, 0, 0, vec![]);
     Ok(())
 }
 
@@ -69,11 +96,18 @@ fn handle_write(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
     let msg_id: MsgId = hdr.msg_id;
     let msg_type: RPCType = hdr.msg_type;
     let msg_len: MsgLen = hdr.msg_len;
+
+    let (fd, page, size, offset) = match unsafe { decode::<WriteReq>(payload) } {
+        Some((req, _)) => (req.fd, req.page.clone(), req.size, req.offset),
+        None => panic!("Cannot decode write request!"),
+    };
+
     println!(
-        "Request with ID {:?}, type {:?}, len {:?}",
-        msg_id, msg_type, msg_len
+        "Write request - fd: {:?}, page: {:?}, size: {:?}, offset: {:?}",
+        fd, page, size, offset
     );
-    construct_ret(hdr, payload);
+
+    construct_ret(hdr, payload, 0, 0, vec![]);
     Ok(())
 }
 
@@ -81,11 +115,18 @@ fn handle_pwrite(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError
     let msg_id: MsgId = hdr.msg_id;
     let msg_type: RPCType = hdr.msg_type;
     let msg_len: MsgLen = hdr.msg_len;
+
+    let (fd, page, size, offset) = match unsafe { decode::<WriteReq>(payload) } {
+        Some((req, _)) => (req.fd, req.page.clone(), req.size, req.offset),
+        None => panic!("Cannot decode pwrite request!"),
+    };
+
     println!(
-        "Request with ID {:?}, type {:?}, len {:?}",
-        msg_id, msg_type, msg_len
+        "PWrite request - fd: {:?}, page: {:?}, size: {:?}, offset: {:?}",
+        fd, page, size, offset
     );
-    construct_ret(hdr, payload);
+
+    construct_ret(hdr, payload, 0, 0, vec![]);
     Ok(())
 }
 
@@ -93,11 +134,15 @@ fn handle_close(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
     let msg_id: MsgId = hdr.msg_id;
     let msg_type: RPCType = hdr.msg_type;
     let msg_len: MsgLen = hdr.msg_len;
-    println!(
-        "Request with ID {:?}, type {:?}, len {:?}",
-        msg_id, msg_type, msg_len
-    );
-    construct_ret(hdr, payload);
+
+    let fd = match unsafe { decode::<CloseReq>(payload) } {
+        Some((req, _)) => req.fd,
+        None => panic!("Cannot decode close request!"),
+    };
+
+    println!("Close request - fd: {:?}", fd);
+
+    construct_ret(hdr, payload, 0, 0, vec![]);
     Ok(())
 }
 
@@ -105,11 +150,17 @@ fn handle_remove(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError
     let msg_id: MsgId = hdr.msg_id;
     let msg_type: RPCType = hdr.msg_type;
     let msg_len: MsgLen = hdr.msg_len;
-    println!(
-        "Request with ID {:?}, type {:?}, len {:?}",
-        msg_id, msg_type, msg_len
-    );
-    construct_ret(hdr, payload);
+
+    let path = match unsafe { decode::<RemoveReq>(payload) } {
+        Some((req, _)) => req.path.clone(),
+        None => panic!("Cannot decode remove request!"),
+    };
+
+    let path = std::str::from_utf8(&path).unwrap();
+
+    println!("Remove request - path: {:?}", path);
+
+    construct_ret(hdr, payload, 0, 0, vec![]);
     Ok(())
 }
 
@@ -121,7 +172,7 @@ fn handle_fsync(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
         "Request with ID {:?}, type {:?}, len {:?}",
         msg_id, msg_type, msg_len
     );
-    construct_ret(hdr, payload);
+    construct_ret(hdr, payload, 0, 0, vec![]);
     Ok(())
 }
 
@@ -129,11 +180,17 @@ fn handle_mkdir(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
     let msg_id: MsgId = hdr.msg_id;
     let msg_type: RPCType = hdr.msg_type;
     let msg_len: MsgLen = hdr.msg_len;
-    println!(
-        "Request with ID {:?}, type {:?}, len {:?}",
-        msg_id, msg_type, msg_len
-    );
-    construct_ret(hdr, payload);
+
+    let (path, modes) = match unsafe { decode::<MkdirReq>(payload) } {
+        Some((req, _)) => (req.path.clone(), req.mode),
+        None => panic!("Cannot decode mkdir request!"),
+    };
+
+    let path = std::str::from_utf8(&path).unwrap();
+
+    println!("Mkdir request - path: {:?}, modes: {:?}", path, modes);
+
+    construct_ret(hdr, payload, 0, 0, vec![]);
     Ok(())
 }
 
@@ -145,7 +202,7 @@ fn handle_rmdir(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
         "Request with ID {:?}, type {:?}, len {:?}",
         msg_id, msg_type, msg_len
     );
-    construct_ret(hdr, payload);
+    construct_ret(hdr, payload, 0, 0, vec![]);
     Ok(())
 }
 
