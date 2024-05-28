@@ -6,6 +6,9 @@ use clap::{crate_version, value_t, App, Arg};
 use std::fs::{remove_file, OpenOptions};
 use std::io::Write;
 
+#[macro_use]
+extern crate abomonation;
+
 mod fxmark;
 use crate::fxmark::utils::topology::MachineTopology;
 use crate::fxmark::{bench, OUTPUT_FILE};
@@ -26,7 +29,7 @@ fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
                 .required(true)
                 .help("client or server")
                 .takes_value(true)
-                .possible_values(&["client", "server"]),
+                .possible_values(&["client", "server", "loc_client_drpc"]),
         )
         .arg(
             Arg::with_name("rpc")
@@ -201,10 +204,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
         }
 
         /// For debugging only!
-
         "loc_server_drpc" => {
             let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());
-            start_drpc_server_tcp("", port);
+            run_server(conn_type, rpc_type);
         }
         "loc_client_drpc" => {
             let mut client = init_client(ConnType::TcpLocal, RPCType::DRPC);

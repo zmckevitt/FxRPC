@@ -1,3 +1,5 @@
+use abomonation::Abomonation;
+
 pub const PATH_LEN: usize = 128;
 pub const PAGE_LEN: usize = 8192;
 // const WR_METADATA_SZ: usize =
@@ -44,10 +46,12 @@ pub fn pack_str<const output_size: usize>(input: &str) -> [u8; output_size] {
 }
 
 pub struct OpenReq {
-    pub path: [u8; PATH_LEN],
+    pub path: Vec<u8>,
     pub flags: i32,
     pub mode: u32,
 }
+
+unsafe_abomonate!(OpenReq : path, flags, mode);
 
 pub struct ReadReq {
     pub fd: i32,
@@ -55,21 +59,32 @@ pub struct ReadReq {
     pub offset: i64,
 }
 
+unsafe_abomonate!(ReadReq : fd, size, offset);
+
 pub struct WriteReq {
     pub fd: i32,
-    pub page: [u8; PAGE_LEN],
+    pub page: Vec<u8>,
     pub size: usize,
     pub offset: i64,
 }
+
+unsafe_abomonate!(WriteReq : fd, page, size, offset);
 
 pub struct CloseReq {
     pub fd: i32,
 }
 
+unsafe_abomonate!(CloseReq : fd);
+
 pub struct RemoveReq {
-    pub path: [u8; PATH_LEN],
+    pub path: Vec<u8>,
 }
+
+unsafe_abomonate!(RemoveReq : path);
+
 pub struct MkdirReq {
-    pub path: [u8; PATH_LEN],
+    pub path: Vec<u8>,
     pub mode: u32,
 }
+
+unsafe_abomonate!(MkdirReq : path, mode);

@@ -4,6 +4,8 @@ use rpc::transport::stdtcp::*;
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
+use abomonation::{decode, encode};
+
 use crate::fxrpc::drpc::*;
 use crate::fxrpc::FxRPC;
 
@@ -19,18 +21,16 @@ impl FxRPC for Client {
         mode: u32,
     ) -> Result<i32, Box<dyn std::error::Error>> {
         let request = OpenReq {
-            path: pack_str::<{ PATH_LEN }>(path),
+            path: path.as_bytes().to_vec(),
             flags: flags,
             mode: mode,
         };
-        let request = "A";
-        let mut request_bytes = [0u8; std::mem::size_of::<OpenReq>()];
+
+        let mut bytes = Vec::new();
+        unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
         let mut data_out = [0u8; 1];
-        self.call(
-            DRPC::Open as RPCType,
-            &[request.as_bytes()],
-            &mut [&mut data_out],
-        );
+
+        self.call(DRPC::Open as RPCType, &[&bytes], &mut [&mut data_out]);
         Ok(0)
     }
 

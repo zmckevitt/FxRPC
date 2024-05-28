@@ -4,6 +4,8 @@ use rpc::transport::stdtcp::*;
 use std::net::{TcpListener, TcpStream};
 use std::sync::{Arc, Mutex};
 
+use abomonation::{decode, encode};
+
 use crate::fxrpc::drpc::fileops::*;
 
 ////////////////////////////////// SERVER //////////////////////////////////
@@ -18,12 +20,23 @@ fn handle_open(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> 
     let msg_id: MsgId = hdr.msg_id;
     let msg_type: RPCType = hdr.msg_type;
     let msg_len: usize = hdr.msg_len as usize;
-    let path_str = std::str::from_utf8(&payload[0..msg_len]);
+
+    let (path, flags, modes) = match unsafe { decode::<OpenReq>(payload) } {
+        Some((req, _)) => (req.path.clone(), req.flags, req.mode),
+        None => panic!("Cannot decode open request!"),
+    };
+
+    let path = std::str::from_utf8(&path).unwrap();
+
+    println!(
+        "Open path: {:?}, flags: {:?}, modes: {:?}",
+        path, flags, modes
+    );
+
     println!(
         "Request with ID {:?}, type {:?}, len {:?}",
         msg_id, msg_type, msg_len
     );
-    println!("Payload: {:?}", path_str);
     construct_ret(hdr, payload);
     Ok(())
 }
