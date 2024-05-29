@@ -13,13 +13,7 @@ use crate::fxrpc::FS_PATH;
 
 ////////////////////////////////// SERVER //////////////////////////////////
 
-fn construct_ret(
-    hdr: &mut RPCHeader,
-    mut payload: &mut [u8],
-    result: i32,
-    size: usize,
-    page: Vec<u8>,
-) {
+fn construct_ret(hdr: &mut RPCHeader, payload: &mut [u8], result: i32, size: usize, page: Vec<u8>) {
     let response = Response {
         result: result,
         size: size,
@@ -37,10 +31,6 @@ fn construct_ret(
 }
 
 fn handle_open(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    let msg_id: MsgId = hdr.msg_id;
-    let msg_type: RPCType = hdr.msg_type;
-    let msg_len: usize = hdr.msg_len as usize;
-
     let (path, flags, modes) = match unsafe { decode::<OpenReq>(payload) } {
         Some((req, _)) => (req.path.clone(), req.flags, req.mode),
         None => panic!("Cannot decode open request!"),
@@ -64,10 +54,6 @@ fn handle_open(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> 
 }
 
 fn handle_read(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    let msg_id: MsgId = hdr.msg_id;
-    let msg_type: RPCType = hdr.msg_type;
-    let msg_len: MsgLen = hdr.msg_len;
-
     let (fd, size, offset) = match unsafe { decode::<ReadReq>(payload) } {
         Some((req, _)) => (req.fd, req.size, req.offset),
         None => panic!("Cannot decode read request!"),
@@ -89,10 +75,6 @@ fn handle_read(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> 
 }
 
 fn handle_pread(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    let msg_id: MsgId = hdr.msg_id;
-    let msg_type: RPCType = hdr.msg_type;
-    let msg_len: MsgLen = hdr.msg_len;
-
     let (fd, size, offset) = match unsafe { decode::<ReadReq>(payload) } {
         Some((req, _)) => (req.fd, req.size, req.offset),
         None => panic!("Cannot decode pread request!"),
@@ -114,10 +96,6 @@ fn handle_pread(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
 }
 
 fn handle_write(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    let msg_id: MsgId = hdr.msg_id;
-    let msg_type: RPCType = hdr.msg_type;
-    let msg_len: MsgLen = hdr.msg_len;
-
     let (fd, page, size, offset) = match unsafe { decode::<WriteReq>(payload) } {
         Some((req, _)) => (req.fd, req.page.clone(), req.size, req.offset),
         None => panic!("Cannot decode write request!"),
@@ -138,10 +116,6 @@ fn handle_write(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
 }
 
 fn handle_pwrite(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    let msg_id: MsgId = hdr.msg_id;
-    let msg_type: RPCType = hdr.msg_type;
-    let msg_len: MsgLen = hdr.msg_len;
-
     let (fd, page, size, offset) = match unsafe { decode::<WriteReq>(payload) } {
         Some((req, _)) => (req.fd, req.page.clone(), req.size, req.offset),
         None => panic!("Cannot decode pwrite request!"),
@@ -162,10 +136,6 @@ fn handle_pwrite(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError
 }
 
 fn handle_close(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    let msg_id: MsgId = hdr.msg_id;
-    let msg_type: RPCType = hdr.msg_type;
-    let msg_len: MsgLen = hdr.msg_len;
-
     let fd = match unsafe { decode::<CloseReq>(payload) } {
         Some((req, _)) => req.fd,
         None => panic!("Cannot decode close request!"),
@@ -178,15 +148,11 @@ fn handle_close(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
         res = close(fd);
     }
 
-    construct_ret(hdr, payload, fd, 0, vec![]);
+    construct_ret(hdr, payload, res as i32, 0, vec![]);
     Ok(())
 }
 
 fn handle_remove(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    let msg_id: MsgId = hdr.msg_id;
-    let msg_type: RPCType = hdr.msg_type;
-    let msg_len: MsgLen = hdr.msg_len;
-
     let path = match unsafe { decode::<RemoveReq>(payload) } {
         Some((req, _)) => req.path.clone(),
         None => panic!("Cannot decode remove request!"),
@@ -206,23 +172,7 @@ fn handle_remove(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError
     Ok(())
 }
 
-fn handle_fsync(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    let msg_id: MsgId = hdr.msg_id;
-    let msg_type: RPCType = hdr.msg_type;
-    let msg_len: MsgLen = hdr.msg_len;
-    debug!(
-        "Request with ID {:?}, type {:?}, len {:?}",
-        msg_id, msg_type, msg_len
-    );
-    construct_ret(hdr, payload, 0, 0, vec![]);
-    Ok(())
-}
-
 fn handle_mkdir(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    let msg_id: MsgId = hdr.msg_id;
-    let msg_type: RPCType = hdr.msg_type;
-    let msg_len: MsgLen = hdr.msg_len;
-
     let (path, modes) = match unsafe { decode::<MkdirReq>(payload) } {
         Some((req, _)) => (req.path.clone(), req.mode),
         None => panic!("Cannot decode mkdir request!"),
@@ -243,13 +193,7 @@ fn handle_mkdir(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
 }
 
 fn handle_rmdir(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> {
-    let msg_id: MsgId = hdr.msg_id;
-    let msg_type: RPCType = hdr.msg_type;
-    let msg_len: MsgLen = hdr.msg_len;
-    debug!(
-        "Request with ID {:?}, type {:?}, len {:?}",
-        msg_id, msg_type, msg_len
-    );
+    debug!("Rmdir request - UNIMPLEMENTED");
     construct_ret(hdr, payload, 0, 0, vec![]);
     Ok(())
 }
@@ -261,7 +205,6 @@ const WRITE_HANDLER: RPCHandler = handle_write;
 const PWRITE_HANDLER: RPCHandler = handle_pwrite;
 const CLOSE_HANDLER: RPCHandler = handle_close;
 const REMOVE_HANDLER: RPCHandler = handle_remove;
-const FSYNC_HANDLER: RPCHandler = handle_fsync;
 const MKDIR_HANDLER: RPCHandler = handle_mkdir;
 const RMDIR_HANDLER: RPCHandler = handle_rmdir;
 
@@ -301,15 +244,13 @@ fn server_from_stream(stream: TcpStream) {
     };
     let mut server = Server::new(Box::new(transport));
     register_rpcs(&mut server);
-    // I dont think we need this, client registration in DiNOS
-    // is usually for allocation of kernel resources (shmem and dcm)
-    // server.add_client(&CLIENT_REGISTRAR);
-    server.run_server();
+    let _ = server.run_server();
 }
 
 pub fn start_drpc_server_tcp(bind_addr: &str, port: u16) {
     // TODO: bind to addr/port specified in parameters
-    let listener = TcpListener::bind("127.0.0.1:8080").expect("Failed to create TCP transport");
+    let addr = format!("{}:{}", bind_addr, port);
+    let listener = TcpListener::bind(addr).expect("Failed to create TCP transport");
 
     for stream in listener.incoming() {
         std::thread::spawn(move || server_from_stream(stream.unwrap()));

@@ -2,7 +2,7 @@ use log::debug;
 use rpc::client::Client;
 use rpc::rpc::*;
 use rpc::transport::stdtcp::*;
-use std::net::{TcpListener, TcpStream};
+use std::net::TcpStream;
 use std::sync::{Arc, Mutex};
 
 use abomonation::{decode, encode};
@@ -39,15 +39,17 @@ impl FxRPC for Client {
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
         let mut data_out = [0u8; std::mem::size_of::<Response>()];
 
-        self.call(DRPC::Open as RPCType, &[&bytes], &mut [&mut data_out]);
-
-        let (result, size, page) = decode_response(&mut data_out);
-        debug!(
-            "Received - result: {:?}, size: {:?}, page: {:?}",
-            result, size, page
-        );
-
-        Ok(result)
+        match self.call(DRPC::Open as RPCType, &[&bytes], &mut [&mut data_out]) {
+            Ok(_) => {
+                let (result, size, page) = decode_response(&mut data_out);
+                debug!(
+                    "Received - result: {:?}, size: {:?}, page: {:?}",
+                    result, size, page
+                );
+                Ok(result)
+            }
+            Err(_) => Err(Box::from("Open RPC failed")),
+        }
     }
 
     fn rpc_read(
@@ -64,19 +66,23 @@ impl FxRPC for Client {
 
         let mut bytes = Vec::new();
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
-        const read_resp_size: usize = 2 * PAGE_SIZE;
-        // std::mem::size_of::<i32>() + std::mem::size_of::<usize>() + std::mem::size_of::<u8>() * PAGE_SIZE;
-        let mut data_out = [0u8; read_resp_size];
-        self.call(DRPC::Read as RPCType, &[&bytes], &mut [&mut data_out]);
 
-        let (result, size, ret_page) = decode_response(&mut data_out);
-        debug!(
-            "Received - result: {:?}, size: {:?}, page: {:?}",
-            result, size, ret_page
-        );
-        *page = ret_page;
+        // probably a bit conservative
+        let mut data_out = [0u8; 2 * PAGE_SIZE];
 
-        Ok(result)
+        match self.call(DRPC::Read as RPCType, &[&bytes], &mut [&mut data_out]) {
+            Ok(_) => {
+                let (result, size, ret_page) = decode_response(&mut data_out);
+                debug!(
+                    "Received - result: {:?}, size: {:?}, page: {:?}",
+                    result, size, ret_page
+                );
+                *page = ret_page;
+
+                Ok(result)
+            }
+            Err(_) => Err(Box::from("Read RPC failed")),
+        }
     }
 
     fn rpc_pread(
@@ -94,20 +100,23 @@ impl FxRPC for Client {
 
         let mut bytes = Vec::new();
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
-        const read_resp_size: usize = 2 * PAGE_SIZE;
-        // std::mem::size_of::<i32>() + std::mem::size_of::<usize>() + std::mem::size_of::<u8>() * PAGE_SIZE;
-        let mut data_out = [0u8; read_resp_size];
 
-        self.call(DRPC::PRead as RPCType, &[&bytes], &mut [&mut data_out]);
+        // probably a bit conservative
+        let mut data_out = [0u8; 2 * PAGE_SIZE];
 
-        let (result, size, ret_page) = decode_response(&mut data_out);
-        debug!(
-            "Received - result: {:?}, size: {:?}, page: {:?}",
-            result, size, ret_page
-        );
-        *page = ret_page;
+        match self.call(DRPC::PRead as RPCType, &[&bytes], &mut [&mut data_out]) {
+            Ok(_) => {
+                let (result, size, ret_page) = decode_response(&mut data_out);
+                debug!(
+                    "Received - result: {:?}, size: {:?}, page: {:?}",
+                    result, size, ret_page
+                );
+                *page = ret_page;
 
-        Ok(result)
+                Ok(result)
+            }
+            Err(_) => Err(Box::from("PRead RPC failed")),
+        }
     }
 
     fn rpc_write(
@@ -127,15 +136,18 @@ impl FxRPC for Client {
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
         let mut data_out = [0u8; std::mem::size_of::<Response>()];
 
-        self.call(DRPC::Write as RPCType, &[&bytes], &mut [&mut data_out]);
+        match self.call(DRPC::Write as RPCType, &[&bytes], &mut [&mut data_out]) {
+            Ok(_) => {
+                let (result, size, page) = decode_response(&mut data_out);
+                debug!(
+                    "Received - result: {:?}, size: {:?}, page: {:?}",
+                    result, size, page
+                );
 
-        let (result, size, page) = decode_response(&mut data_out);
-        debug!(
-            "Received - result: {:?}, size: {:?}, page: {:?}",
-            result, size, page
-        );
-
-        Ok(result)
+                Ok(result)
+            }
+            Err(_) => Err(Box::from("Write RPC failed")),
+        }
     }
 
     fn rpc_pwrite(
@@ -149,22 +161,25 @@ impl FxRPC for Client {
             fd: fd,
             page: page.to_vec(),
             size: size,
-            offset: 0,
+            offset: offset,
         };
 
         let mut bytes = Vec::new();
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
         let mut data_out = [0u8; std::mem::size_of::<Response>()];
 
-        self.call(DRPC::PWrite as RPCType, &[&bytes], &mut [&mut data_out]);
+        match self.call(DRPC::PWrite as RPCType, &[&bytes], &mut [&mut data_out]) {
+            Ok(_) => {
+                let (result, size, page) = decode_response(&mut data_out);
+                debug!(
+                    "Received - result: {:?}, size: {:?}, page: {:?}",
+                    result, size, page
+                );
 
-        let (result, size, page) = decode_response(&mut data_out);
-        debug!(
-            "Received - result: {:?}, size: {:?}, page: {:?}",
-            result, size, page
-        );
-
-        Ok(result)
+                Ok(result)
+            }
+            Err(_) => Err(Box::from("PWrite RPC failed")),
+        }
     }
 
     fn rpc_close(&mut self, fd: i32) -> Result<i32, Box<dyn std::error::Error>> {
@@ -174,15 +189,18 @@ impl FxRPC for Client {
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
         let mut data_out = [0u8; std::mem::size_of::<Response>()];
 
-        self.call(DRPC::Close as RPCType, &[&bytes], &mut [&mut data_out]);
+        match self.call(DRPC::Close as RPCType, &[&bytes], &mut [&mut data_out]) {
+            Ok(_) => {
+                let (result, size, page) = decode_response(&mut data_out);
+                debug!(
+                    "Received - result: {:?}, size: {:?}, page: {:?}",
+                    result, size, page
+                );
 
-        let (result, size, page) = decode_response(&mut data_out);
-        debug!(
-            "Received - result: {:?}, size: {:?}, page: {:?}",
-            result, size, page
-        );
-
-        Ok(result)
+                Ok(result)
+            }
+            Err(_) => Err(Box::from("Close RPC failed")),
+        }
     }
 
     fn rpc_remove(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
@@ -194,15 +212,18 @@ impl FxRPC for Client {
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
         let mut data_out = [0u8; std::mem::size_of::<Response>()];
 
-        self.call(DRPC::Remove as RPCType, &[&bytes], &mut [&mut data_out]);
+        match self.call(DRPC::Remove as RPCType, &[&bytes], &mut [&mut data_out]) {
+            Ok(_) => {
+                let (result, size, page) = decode_response(&mut data_out);
+                debug!(
+                    "Received - result: {:?}, size: {:?}, page: {:?}",
+                    result, size, page
+                );
 
-        let (result, size, page) = decode_response(&mut data_out);
-        debug!(
-            "Received - result: {:?}, size: {:?}, page: {:?}",
-            result, size, page
-        );
-
-        Ok(result)
+                Ok(result)
+            }
+            Err(_) => Err(Box::from("Remove RPC failed")),
+        }
     }
 
     fn rpc_mkdir(&mut self, path: &str, mode: u32) -> Result<i32, Box<dyn std::error::Error>> {
@@ -215,15 +236,18 @@ impl FxRPC for Client {
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
         let mut data_out = [0u8; std::mem::size_of::<Response>()];
 
-        self.call(DRPC::MkDir as RPCType, &[&bytes], &mut [&mut data_out]);
+        match self.call(DRPC::MkDir as RPCType, &[&bytes], &mut [&mut data_out]) {
+            Ok(_) => {
+                let (result, size, page) = decode_response(&mut data_out);
+                debug!(
+                    "Received - result: {:?}, size: {:?}, page: {:?}",
+                    result, size, page
+                );
 
-        let (result, size, page) = decode_response(&mut data_out);
-        debug!(
-            "Received - result: {:?}, size: {:?}, page: {:?}",
-            result, size, page
-        );
-
-        Ok(result)
+                Ok(result)
+            }
+            Err(_) => Err(Box::from("Mkdir RPC failed")),
+        }
     }
 
     fn rpc_rmdir(&mut self, path: &str) -> Result<i32, Box<dyn std::error::Error>> {
@@ -235,15 +259,18 @@ impl FxRPC for Client {
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
         let mut data_out = [0u8; std::mem::size_of::<Response>()];
 
-        self.call(DRPC::RmDir as RPCType, &[&bytes], &mut [&mut data_out]);
+        match self.call(DRPC::RmDir as RPCType, &[&bytes], &mut [&mut data_out]) {
+            Ok(_) => {
+                let (result, size, page) = decode_response(&mut data_out);
+                debug!(
+                    "Received - result: {:?}, size: {:?}, page: {:?}",
+                    result, size, page
+                );
 
-        let (result, size, page) = decode_response(&mut data_out);
-        debug!(
-            "Received - result: {:?}, size: {:?}, page: {:?}",
-            result, size, page
-        );
-
-        Ok(result)
+                Ok(result)
+            }
+            Err(_) => Err(Box::from("Rmdir RPC failed")),
+        }
     }
 }
 
@@ -255,6 +282,6 @@ pub fn init_client_drpc() -> Client {
     let transport = StdTCP {
         stream: Arc::new(Mutex::new(stream)),
     };
-    let mut client = Client::new(Box::new(transport));
+    let client = Client::new(Box::new(transport));
     client
 }

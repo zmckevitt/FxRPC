@@ -1,4 +1,3 @@
-use crate::fxrpc::PAGE_SIZE;
 use abomonation::Abomonation;
 
 ////////////////////////////// FS RPC Hdrs  //////////////////////////////
@@ -6,8 +5,6 @@ use abomonation::Abomonation;
 #[derive(Debug, Eq, PartialEq, PartialOrd, Clone, Copy)]
 #[repr(u8)]
 pub(crate) enum DRPC {
-    /// Create a file
-    Create = 0,
     /// Open a file
     Open = 1,
     /// Read from a file
@@ -20,25 +17,12 @@ pub(crate) enum DRPC {
     PWrite = 5,
     /// Close an opened file.
     Close = 6,
-    /// Get the information related to the file.
-    GetInfo = 7,
     /// Remove the file
-    Remove = 8,
-    /// Write to a file without going into NR.
-    WriteDirect = 9,
-    /// Rename a file.
-    FileRename = 10,
+    Remove = 7,
     /// Create a directory.
-    MkDir = 11,
+    MkDir = 8,
     /// Remove a directory.
-    RmDir = 12,
-}
-
-pub fn pack_str<const output_size: usize>(input: &str) -> [u8; output_size] {
-    let bytes = input.as_bytes();
-    let mut output = [0; output_size];
-    output[..input.len()].copy_from_slice(&bytes);
-    output
+    RmDir = 9,
 }
 
 pub struct OpenReq {

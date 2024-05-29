@@ -1,7 +1,7 @@
 pub mod drpc;
 pub mod grpc;
-pub use crate::fxrpc::drpc::*;
-pub use crate::fxrpc::grpc::*;
+use crate::fxrpc::drpc::*;
+use crate::fxrpc::grpc::*;
 
 pub use crate::fxmark::PAGE_SIZE;
 
@@ -13,12 +13,14 @@ pub const FS_PATH: &str = "/dev/shm/";
 pub const UDS_PATH: &str = "/dev/shm/uds";
 
 #[derive(Clone, Copy, PartialEq)]
+#[repr(C)]
 pub enum LogMode {
     CSV,
     STDOUT,
 }
 
 #[derive(Clone, Copy, PartialEq)]
+#[repr(C)]
 pub enum ConnType {
     TcpLocal,
     TcpRemote,
@@ -36,6 +38,7 @@ impl std::fmt::Display for ConnType {
 }
 
 #[derive(Clone, Copy)]
+#[repr(C)]
 pub enum RPCType {
     DRPC,
     GRPC,
@@ -51,6 +54,7 @@ impl std::fmt::Display for RPCType {
 }
 
 #[derive(Clone)]
+#[repr(C)]
 pub struct ClientParams {
     pub cid: usize,
     pub nclients: usize,
@@ -60,7 +64,7 @@ pub struct ClientParams {
     pub rpc_type: RPCType,
 }
 
-pub(crate) trait FxRPC {
+pub trait FxRPC {
     fn rpc_open(
         &mut self,
         path: &str,

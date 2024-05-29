@@ -1,26 +1,19 @@
 /*
-    Library for gRPC system call server and clients.
+    Library for gRPC system call clients.
     Zack McKevitt - 2023
 */
 
-use libc::*;
 use syscalls::{
-    syscall_client::SyscallClient,
-    syscall_server::{Syscall, SyscallServer},
-    CloseRequest, DirRequest, FstatRequest, FstatResponse, FsyncRequest, OpenRequest, ReadRequest,
-    RemoveRequest, SyscallResponse, WriteRequest,
+    syscall_client::SyscallClient, CloseRequest, DirRequest, OpenRequest, ReadRequest,
+    RemoveRequest, WriteRequest,
 };
-use tokio::net::{UnixListener, UnixStream};
+use tokio::net::UnixStream;
 use tokio::runtime::Builder;
 use tokio::runtime::Runtime;
-use tokio_stream::wrappers::UnixListenerStream;
-use tonic::{transport::Endpoint, transport::Server, transport::Uri, Request, Response, Status};
+use tonic::{transport::Endpoint, transport::Uri};
 use tower::service_fn;
 
-use std::os::unix::net::UnixListener as StdUnixListener;
-use std::path::Path;
-
-pub use crate::fxrpc::*;
+use crate::fxrpc::*;
 
 //////////////////////////////////////// CLIENT ////////////////////////////////////////
 pub struct BlockingClient {
