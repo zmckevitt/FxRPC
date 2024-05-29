@@ -1,3 +1,4 @@
+use libc::*;
 use rpc::rpc::*;
 use rpc::server::{RPCHandler, Server};
 use rpc::transport::stdtcp::*;
@@ -7,6 +8,7 @@ use std::sync::{Arc, Mutex};
 use abomonation::{decode, encode};
 
 use crate::fxrpc::drpc::fileops::*;
+use crate::fxrpc::FS_PATH;
 
 ////////////////////////////////// SERVER //////////////////////////////////
 
@@ -50,7 +52,13 @@ fn handle_open(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> 
         path, flags, modes
     );
 
-    construct_ret(hdr, payload, 0, 0, vec![]);
+    let file_path = format!("{}{}{}", FS_PATH, path, char::from(0));
+    let fd;
+    unsafe {
+        fd = open(file_path.as_ptr() as *const i8, flags, modes);
+    }
+
+    construct_ret(hdr, payload, fd, 0, vec![]);
     Ok(())
 }
 
@@ -69,7 +77,13 @@ fn handle_read(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> 
         fd, size, offset
     );
 
-    construct_ret(hdr, payload, 0, 12, "Hello World!".as_bytes().to_vec());
+    let res;
+    let page: Vec<u8> = vec![0; size];
+    unsafe {
+        res = read(fd, page.as_ptr() as *mut c_void, size);
+    }
+
+    construct_ret(hdr, payload, res as i32, size, page.to_vec());
     Ok(())
 }
 
@@ -88,7 +102,13 @@ fn handle_pread(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
         fd, size, offset
     );
 
-    construct_ret(hdr, payload, 0, 0, vec![]);
+    let res;
+    let page: Vec<u8> = vec![0; size];
+    unsafe {
+        res = pread(fd, page.as_ptr() as *mut c_void, size, offset);
+    }
+
+    construct_ret(hdr, payload, res as i32, size, page.to_vec());
     Ok(())
 }
 
@@ -107,7 +127,12 @@ fn handle_write(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
         fd, page, size, offset
     );
 
-    construct_ret(hdr, payload, 0, 0, vec![]);
+    let res;
+    unsafe {
+        res = write(fd, page.as_ptr() as *const c_void, size);
+    }
+
+    construct_ret(hdr, payload, res as i32, 0, vec![]);
     Ok(())
 }
 
@@ -126,7 +151,12 @@ fn handle_pwrite(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError
         fd, page, size, offset
     );
 
-    construct_ret(hdr, payload, 0, 0, vec![]);
+    let res;
+    unsafe {
+        res = pwrite(fd, page.as_ptr() as *const c_void, size, offset);
+    }
+
+    construct_ret(hdr, payload, res as i32, 0, vec![]);
     Ok(())
 }
 
@@ -142,7 +172,12 @@ fn handle_close(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
 
     println!("Close request - fd: {:?}", fd);
 
-    construct_ret(hdr, payload, 0, 0, vec![]);
+    let res;
+    unsafe {
+        res = close(fd);
+    }
+
+    construct_ret(hdr, payload, fd, 0, vec![]);
     Ok(())
 }
 
@@ -160,7 +195,13 @@ fn handle_remove(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError
 
     println!("Remove request - path: {:?}", path);
 
-    construct_ret(hdr, payload, 0, 0, vec![]);
+    let file_path = format!("{}{}{}", FS_PATH, path, char::from(0));
+    let fd;
+    unsafe {
+        fd = remove(file_path.as_ptr() as *const i8);
+    }
+
+    construct_ret(hdr, payload, fd, 0, vec![]);
     Ok(())
 }
 
@@ -190,7 +231,13 @@ fn handle_mkdir(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
 
     println!("Mkdir request - path: {:?}, modes: {:?}", path, modes);
 
-    construct_ret(hdr, payload, 0, 0, vec![]);
+    let dir_path = format!("{}{}{}", FS_PATH, path, char::from(0));
+    let res;
+    unsafe {
+        res = mkdir(dir_path.as_ptr() as *const i8, modes.try_into().unwrap());
+    }
+
+    construct_ret(hdr, payload, res, 0, vec![]);
     Ok(())
 }
 
