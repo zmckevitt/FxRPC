@@ -307,7 +307,7 @@ fn server_from_stream(stream: TcpStream) {
     server.run_server();
 }
 
-pub fn start_drpc_server_tcp(bind_addr: &str, port: u64) {
+pub fn start_drpc_server_tcp(bind_addr: &str, port: u16) {
     // TODO: bind to addr/port specified in parameters
     let listener = TcpListener::bind("127.0.0.1:8080").expect("Failed to create TCP transport");
 

@@ -52,8 +52,10 @@ fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
         .arg(
             Arg::with_name("port")
                 .long("port")
+                .short("p")
                 .required(false)
-                .help("Port to bind server")
+                .help("Port")
+                .default_value("8080")
                 .takes_value(true),
         )
         .arg(
@@ -117,6 +119,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let matches = parseargs(args);
 
     let mode = value_t!(matches, "mode", String).unwrap();
+    let port = value_t!(matches, "port", u16).unwrap();
     let conn_type: ConnType = {
         match value_t!(matches, "transport", String).unwrap().as_str() {
             "tcplocal" => ConnType::TcpLocal,
@@ -135,7 +138,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     match mode.as_str() {
         "server" => {
-            run_server(conn_type, rpc_type);
+            run_server(conn_type, rpc_type, port);
         }
         "client" => {
             let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();

@@ -118,17 +118,17 @@ pub fn init_client(conn_type: ConnType, rpc_type: RPCType) -> Box<dyn FxRPC> {
     }
 }
 
-pub fn run_server(conn_type: ConnType, rpc_type: RPCType) {
+pub fn run_server(conn_type: ConnType, rpc_type: RPCType, port: u16) {
     println!("Starting {} {} server", rpc_type, conn_type);
     match rpc_type {
         RPCType::GRPC => match conn_type {
-            ConnType::TcpLocal => start_rpc_server_tcp("[::1]", 8080),
-            ConnType::TcpRemote => start_rpc_server_tcp("172.31.0.1", 8080),
+            ConnType::TcpLocal => start_rpc_server_tcp("[::1]", port),
+            ConnType::TcpRemote => start_rpc_server_tcp("172.31.0.1", port),
             ConnType::UDS => start_rpc_server_uds(UDS_PATH).unwrap(),
         },
         RPCType::DRPC => match conn_type {
-            ConnType::TcpLocal => start_drpc_server_tcp("127.0.0.1", 8080),
-            ConnType::TcpRemote => start_drpc_server_tcp("172.31.0.1", 8080),
+            ConnType::TcpLocal => start_drpc_server_tcp("127.0.0.1", port),
+            ConnType::TcpRemote => start_drpc_server_tcp("172.31.0.1", port),
             ConnType::UDS => start_drpc_server_uds(),
         },
     };
