@@ -1,3 +1,4 @@
+use log::debug;
 use rpc::client::Client;
 use rpc::rpc::*;
 use rpc::transport::stdtcp::*;
@@ -41,7 +42,7 @@ impl FxRPC for Client {
         self.call(DRPC::Open as RPCType, &[&bytes], &mut [&mut data_out]);
 
         let (result, size, page) = decode_response(&mut data_out);
-        println!(
+        debug!(
             "Received - result: {:?}, size: {:?}, page: {:?}",
             result, size, page
         );
@@ -63,13 +64,13 @@ impl FxRPC for Client {
 
         let mut bytes = Vec::new();
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
-        const read_resp_size: usize =
-            std::mem::size_of::<i32>() + std::mem::size_of::<usize>() + PAGE_SIZE;
-        let mut data_out = [0u8; PAGE_SIZE];
+        const read_resp_size: usize = 2 * PAGE_SIZE;
+        // std::mem::size_of::<i32>() + std::mem::size_of::<usize>() + std::mem::size_of::<u8>() * PAGE_SIZE;
+        let mut data_out = [0u8; read_resp_size];
         self.call(DRPC::Read as RPCType, &[&bytes], &mut [&mut data_out]);
 
         let (result, size, ret_page) = decode_response(&mut data_out);
-        println!(
+        debug!(
             "Received - result: {:?}, size: {:?}, page: {:?}",
             result, size, ret_page
         );
@@ -93,14 +94,14 @@ impl FxRPC for Client {
 
         let mut bytes = Vec::new();
         unsafe { encode(&request, &mut bytes) }.expect("Failed to encode open request");
-        const read_resp_size: usize =
-            std::mem::size_of::<i32>() + std::mem::size_of::<usize>() + PAGE_SIZE;
+        const read_resp_size: usize = 2 * PAGE_SIZE;
+        // std::mem::size_of::<i32>() + std::mem::size_of::<usize>() + std::mem::size_of::<u8>() * PAGE_SIZE;
         let mut data_out = [0u8; read_resp_size];
 
         self.call(DRPC::PRead as RPCType, &[&bytes], &mut [&mut data_out]);
 
         let (result, size, ret_page) = decode_response(&mut data_out);
-        println!(
+        debug!(
             "Received - result: {:?}, size: {:?}, page: {:?}",
             result, size, ret_page
         );
@@ -129,7 +130,7 @@ impl FxRPC for Client {
         self.call(DRPC::Write as RPCType, &[&bytes], &mut [&mut data_out]);
 
         let (result, size, page) = decode_response(&mut data_out);
-        println!(
+        debug!(
             "Received - result: {:?}, size: {:?}, page: {:?}",
             result, size, page
         );
@@ -158,7 +159,7 @@ impl FxRPC for Client {
         self.call(DRPC::PWrite as RPCType, &[&bytes], &mut [&mut data_out]);
 
         let (result, size, page) = decode_response(&mut data_out);
-        println!(
+        debug!(
             "Received - result: {:?}, size: {:?}, page: {:?}",
             result, size, page
         );
@@ -176,7 +177,7 @@ impl FxRPC for Client {
         self.call(DRPC::Close as RPCType, &[&bytes], &mut [&mut data_out]);
 
         let (result, size, page) = decode_response(&mut data_out);
-        println!(
+        debug!(
             "Received - result: {:?}, size: {:?}, page: {:?}",
             result, size, page
         );
@@ -196,7 +197,7 @@ impl FxRPC for Client {
         self.call(DRPC::Remove as RPCType, &[&bytes], &mut [&mut data_out]);
 
         let (result, size, page) = decode_response(&mut data_out);
-        println!(
+        debug!(
             "Received - result: {:?}, size: {:?}, page: {:?}",
             result, size, page
         );
@@ -217,7 +218,7 @@ impl FxRPC for Client {
         self.call(DRPC::MkDir as RPCType, &[&bytes], &mut [&mut data_out]);
 
         let (result, size, page) = decode_response(&mut data_out);
-        println!(
+        debug!(
             "Received - result: {:?}, size: {:?}, page: {:?}",
             result, size, page
         );
@@ -237,7 +238,7 @@ impl FxRPC for Client {
         self.call(DRPC::RmDir as RPCType, &[&bytes], &mut [&mut data_out]);
 
         let (result, size, page) = decode_response(&mut data_out);
-        println!(
+        debug!(
             "Received - result: {:?}, size: {:?}, page: {:?}",
             result, size, page
         );

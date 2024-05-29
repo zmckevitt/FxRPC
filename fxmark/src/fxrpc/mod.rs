@@ -25,10 +25,29 @@ pub enum ConnType {
     UDS,
 }
 
+impl std::fmt::Display for ConnType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ConnType::TcpLocal => write!(f, "tcplocal"),
+            ConnType::TcpRemote => write!(f, "tcpremote"),
+            ConnType::UDS => write!(f, "uds"),
+        }
+    }
+}
+
 #[derive(Clone, Copy)]
 pub enum RPCType {
-    GRPC,
     DRPC,
+    GRPC,
+}
+
+impl std::fmt::Display for RPCType {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            RPCType::DRPC => write!(f, "drpc"),
+            RPCType::GRPC => write!(f, "grpc"),
+        }
+    }
 }
 
 #[derive(Clone)]
@@ -100,6 +119,7 @@ pub fn init_client(conn_type: ConnType, rpc_type: RPCType) -> Box<dyn FxRPC> {
 }
 
 pub fn run_server(conn_type: ConnType, rpc_type: RPCType) {
+    println!("Starting {} {} server", rpc_type, conn_type);
     match rpc_type {
         RPCType::GRPC => match conn_type {
             ConnType::TcpLocal => start_rpc_server_tcp("[::1]", 8080),

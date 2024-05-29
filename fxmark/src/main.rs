@@ -10,13 +10,15 @@ use std::io::Write;
 extern crate abomonation;
 
 mod fxmark;
+use crate::fxmark::bench;
 use crate::fxmark::utils::topology::MachineTopology;
-use crate::fxmark::{bench, OUTPUT_FILE};
 
 pub mod fxrpc;
 use crate::fxrpc::ConnType;
 use crate::fxrpc::RPCType;
 use crate::fxrpc::*;
+
+const DEFAULT_OUTFILE: &str = "fxrpc_bench.csv";
 
 fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
     let matches = App::new("Fxmark gRPC benchmark")
@@ -98,6 +100,14 @@ fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
                 .help("Cores per client")
                 .takes_value(true),
         )
+        .arg(
+            Arg::with_name("outfile")
+                .short("o")
+                .required(false)
+                .help("Optional output file name")
+                .takes_value(true)
+                .default_value(DEFAULT_OUTFILE),
+        )
         .get_matches_from(args);
     matches
 }
@@ -115,14 +125,13 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
             &_ => panic!("Unknown ConnType!"),
         }
     };
-    let rpc_type: RPCType = {
-        match value_t!(matches, "rpc", String).unwrap().as_str() {
-            "grpc" => RPCType::GRPC,
-            "drpc" => RPCType::DRPC,
-            &_ => panic!("Unknown RPCType!"),
-        }
+    let rpc_type: RPCType = match value_t!(matches, "rpc", String).unwrap().as_str() {
+        "grpc" => RPCType::GRPC,
+        "drpc" => RPCType::DRPC,
+        &_ => panic!("Unknown RPCType!"),
     };
     let bench_name = String::from("mix");
+    let outfile = value_t!(matches, "outfile", String).unwrap();
 
     match mode.as_str() {
         "server" => {
@@ -177,14 +186,14 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                 rpc_type: rpc_type,
             };
 
-            let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients\n";
+            let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients,rpctype\n";
             match log_mode {
                 LogMode::CSV => {
-                    let _ = remove_file(OUTPUT_FILE);
+                    let _ = remove_file(outfile.clone());
                     let mut csv_file = OpenOptions::new()
                         .append(true)
                         .create(true)
-                        .open(OUTPUT_FILE)
+                        .open(outfile.clone())
                         .expect("Cant open output file");
                     let r = csv_file.write(row.as_bytes());
                     assert!(r.is_ok());
@@ -198,35 +207,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
             for of in openfs {
                 for wr in &wratios {
-                    bench(bench_name.clone(), of, *wr, duration, &client_params);
+                    bench(
+                        bench_name.clone(),
+                        of,
+                        *wr,
+                        duration,
+                        &client_params,
+                        &outfile,
+                    );
                 }
             }
-        }
-
-        /// For debugging only!
-        "loc_server_drpc" => {
-            let port = value_t!(matches, "port", u64).unwrap_or_else(|e| e.exit());
-            run_server(conn_type, rpc_type);
-        }
-        "loc_client_drpc" => {
-            let mut client = init_client(ConnType::TcpLocal, RPCType::DRPC);
-            client.rpc_open("OPEN_STRING", 0, 0).expect("Open failed");
-            client
-                .rpc_read(0, &mut vec![0 as u8], 0)
-                .expect("Read failed");
-            client
-                .rpc_pread(0, &mut vec![0 as u8], 0, 0)
-                .expect("PRead failed");
-            client
-                .rpc_write(0, &"HELLO WORLD!".as_bytes().to_vec(), 0)
-                .expect("Write failed");
-            client
-                .rpc_pwrite(0, &mut vec![0 as u8], 0, 0)
-                .expect("Write failed");
-            client.rpc_close(0).expect("PWrite failed");
-            client.rpc_remove("").expect("Remove failed");
-            client.rpc_mkdir("", 0).expect("MkDir failed");
-            println!("Done");
         }
         _ => panic!("Unknown mode!"),
     }

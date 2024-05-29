@@ -34,8 +34,6 @@ pub const PAGE_SIZE: usize = 1024;
 
 static POOR_MANS_BARRIER: AtomicUsize = AtomicUsize::new(0);
 
-pub const OUTPUT_FILE: &str = "fxmark_grpc_benchmarks.csv";
-
 lazy_static! {
     pub static ref MAX_OPEN_FILES: AtomicUsize = AtomicUsize::new(max_open_files());
 }
@@ -98,6 +96,7 @@ unsafe extern "C" fn fxmark_bencher_trampoline<T>(
     core_id: usize,
     duration: u64,
     client_params: ClientParams,
+    outfile: &String,
 ) -> *mut u8
 where
     T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -111,6 +110,7 @@ where
         bench.open_files,
         duration,
         client_params,
+        outfile,
     );
     ptr::null_mut()
 }
@@ -167,6 +167,7 @@ where
         open_files: usize,
         duration: u64,
         client_params: ClientParams,
+        outfile: &String,
     ) {
         // let bench_duration_secs = if cfg!(feature = "smoke") { 1 } else { 10 };
         let bench_duration_secs = duration;
@@ -184,7 +185,7 @@ where
                 OpenOptions::new()
                     .append(true)
                     .create(true)
-                    .open(OUTPUT_FILE)
+                    .open(outfile)
                     .expect("Cant open output file"),
             ))
         } else {
@@ -193,7 +194,7 @@ where
 
         for iteration in 1..(bench_duration_secs + 1) {
             let row = format!(
-                "{},{:?},{},{},{},{},{},{},{},{},{}\n",
+                "{},{:?},{},{},{},{},{},{},{},{},{},{}\n",
                 core_id + (client_params.ccores * client_params.cid),
                 benchmark,
                 cores * client_params.nclients,
@@ -205,6 +206,7 @@ where
                 client_params.cid,
                 client_params.ccores,
                 client_params.nclients,
+                client_params.rpc_type,
             );
 
             match client_params.log_mode {
@@ -235,6 +237,7 @@ pub fn bench(
     write_ratio: usize,
     duration: u64,
     client_params: &ClientParams,
+    outfile: &String,
 ) {
     fn start<
         T: Bench + Default + core::marker::Send + core::marker::Sync + 'static + core::clone::Clone,
@@ -244,6 +247,7 @@ pub fn bench(
         write_ratio: usize,
         duration: u64,
         client_params: &ClientParams,
+        outfile: &String,
     ) {
         let thread_mappings = microbench.thread_mappings.clone();
         let threads = microbench.threads.clone();
@@ -280,6 +284,7 @@ pub fn bench(
 
                     let bench_duration = duration.clone();
                     let params = (*client_params).clone();
+                    let outfile_cloned = outfile.clone();
                     thandles.push(thread::spawn(move || {
                         utils::pin_thread(core_id);
                         let arg = Arc::into_raw(mb) as *const _ as *mut u8;
@@ -290,6 +295,7 @@ pub fn bench(
                                 core_id as usize,
                                 bench_duration,
                                 params,
+                                &outfile_cloned,
                             );
                         }
                     }));
@@ -304,6 +310,13 @@ pub fn bench(
 
     if benchmark == "mix" {
         let mb = MicroBench::<MIX>::new("mix", write_ratio, open_files, client_params);
-        start::<MIX>(mb, open_files, write_ratio, duration, client_params);
+        start::<MIX>(
+            mb,
+            open_files,
+            write_ratio,
+            duration,
+            client_params,
+            outfile,
+        );
     }
 }

@@ -1,4 +1,5 @@
 use libc::*;
+use log::debug;
 use rpc::rpc::*;
 use rpc::server::{RPCHandler, Server};
 use rpc::transport::stdtcp::*;
@@ -47,7 +48,7 @@ fn handle_open(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> 
 
     let path = std::str::from_utf8(&path).unwrap();
 
-    println!(
+    debug!(
         "Open request - path: {:?}, flags: {:?}, modes: {:?}",
         path, flags, modes
     );
@@ -72,7 +73,7 @@ fn handle_read(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError> 
         None => panic!("Cannot decode read request!"),
     };
 
-    println!(
+    debug!(
         "Read request - fd: {:?}, size: {:?}, offset: {:?}",
         fd, size, offset
     );
@@ -97,7 +98,7 @@ fn handle_pread(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
         None => panic!("Cannot decode pread request!"),
     };
 
-    println!(
+    debug!(
         "PRead request - fd: {:?}, size: {:?}, offset: {:?}",
         fd, size, offset
     );
@@ -122,7 +123,7 @@ fn handle_write(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
         None => panic!("Cannot decode write request!"),
     };
 
-    println!(
+    debug!(
         "Write request - fd: {:?}, page: {:?}, size: {:?}, offset: {:?}",
         fd, page, size, offset
     );
@@ -146,7 +147,7 @@ fn handle_pwrite(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError
         None => panic!("Cannot decode pwrite request!"),
     };
 
-    println!(
+    debug!(
         "PWrite request - fd: {:?}, page: {:?}, size: {:?}, offset: {:?}",
         fd, page, size, offset
     );
@@ -170,7 +171,7 @@ fn handle_close(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
         None => panic!("Cannot decode close request!"),
     };
 
-    println!("Close request - fd: {:?}", fd);
+    debug!("Close request - fd: {:?}", fd);
 
     let res;
     unsafe {
@@ -193,7 +194,7 @@ fn handle_remove(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError
 
     let path = std::str::from_utf8(&path).unwrap();
 
-    println!("Remove request - path: {:?}", path);
+    debug!("Remove request - path: {:?}", path);
 
     let file_path = format!("{}{}{}", FS_PATH, path, char::from(0));
     let fd;
@@ -209,7 +210,7 @@ fn handle_fsync(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
     let msg_id: MsgId = hdr.msg_id;
     let msg_type: RPCType = hdr.msg_type;
     let msg_len: MsgLen = hdr.msg_len;
-    println!(
+    debug!(
         "Request with ID {:?}, type {:?}, len {:?}",
         msg_id, msg_type, msg_len
     );
@@ -229,7 +230,7 @@ fn handle_mkdir(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
 
     let path = std::str::from_utf8(&path).unwrap();
 
-    println!("Mkdir request - path: {:?}, modes: {:?}", path, modes);
+    debug!("Mkdir request - path: {:?}, modes: {:?}", path, modes);
 
     let dir_path = format!("{}{}{}", FS_PATH, path, char::from(0));
     let res;
@@ -245,7 +246,7 @@ fn handle_rmdir(hdr: &mut RPCHeader, payload: &mut [u8]) -> Result<(), RPCError>
     let msg_id: MsgId = hdr.msg_id;
     let msg_type: RPCType = hdr.msg_type;
     let msg_len: MsgLen = hdr.msg_len;
-    println!(
+    debug!(
         "Request with ID {:?}, type {:?}, len {:?}",
         msg_id, msg_type, msg_len
     );
@@ -307,7 +308,6 @@ fn server_from_stream(stream: TcpStream) {
 }
 
 pub fn start_drpc_server_tcp(bind_addr: &str, port: u64) {
-    println!("Starting DRPC server on port {}", port);
     // TODO: bind to addr/port specified in parameters
     let listener = TcpListener::bind("127.0.0.1:8080").expect("Failed to create TCP transport");
 

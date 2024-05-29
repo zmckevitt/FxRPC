@@ -243,8 +243,6 @@ pub fn start_rpc_server_tcp(bind_addr: &str, port: u64) {
     let address = format!("{}:{}", bind_addr, port).parse().unwrap();
     let syscalls_service = SyscallService::default();
 
-    println!("Starting server on port {}", port);
-
     let rt = Runtime::new().expect("Failed to obtain runtime object.");
     let server_future = Server::builder()
         .add_service(SyscallServer::new(syscalls_service))
@@ -255,7 +253,7 @@ pub fn start_rpc_server_tcp(bind_addr: &str, port: u64) {
 
 #[tokio::main]
 pub async fn start_rpc_server_uds(path: &str) -> Result<(), Box<dyn std::error::Error>> {
-    println!("Starting server on UDS path: {}", path);
+    println!("UDS path: {}", path);
 
     // Remove existing UDS dir
     let _ = std::fs::remove_dir_all(Path::new(path).parent().unwrap());
