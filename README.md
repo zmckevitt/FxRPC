@@ -1,35 +1,20 @@
-# Fxmark gRPC
+# FxRPC
 
-Distributed fxmark benchmark using gRPC. Project uses gRPC to pass basic file related syscalls from a client to a file server that executes the relevent syscalls and returns the result to the client. Currently, this program supports the following syscalls and file system operations:
-
-- Open
-- Read/pRead
-- Write/pWrite
-- Close
-- Remove
-- Fsync
-- Mkdir
-- Rmdir
-
-This project will automatically deploy virtualized Ubuntu images to run the benchmarking suite via qemu, and log the results of the benchmark to the ```run/``` directory.
+This project contains a distributed filesystem benchmark where clients forward system calls over RPCs to a centralized file server. Currently, FxRPC supports gRPC and Dinos-RPC libraries.
 
 ## System dependencies
 
-First, install Rust with nightly:
+This project uses submodules, so initialize them first:
+```
+git submodule update --init
+```
+Rust (using nightly) can be installed as follows:
 ```
 curl --proto '=https' --tlsv1.3 https://sh.rustup.rs -sSf | sh
 source "$HOME/.cargo/env"
 rustup default nightly
 ```
-Next, add yourself to the kvm group:
-```
-sudo adduser [username] kvm
-```
-You will need to reset your shell for this to take effect:
-```
-exit
-```
-To build the Fxmark gRPC program in ```prog/```, you will need the following dependencies:
+To build the FxRPC program in ```fxmark/```, you will need the following dependencies for gRPC:
 ```
 sudo apt install protobuf-compiler -y
 ```
@@ -37,46 +22,38 @@ To run the automated benchmark runner in ```run/```, you will need the python nu
 ```
 pip install py-libnuma
 ```
-
-## Fxmark gRPC Program
-
-The Fxmark gRPC program is located in the ```prog/``` directory.
-
-### Building
-
-This project contains a client/server library for distributed syscalls using gRPC. To build the project, first install the necessary dependencies, then build with the nightly rust toolchain:
+If running with QEMU emulation, you must add yourself to the kvm group (you will need to reset your shell for this to take effect):
 ```
-cargo build --release
+sudo adduser [username] kvm
 ```
 
-### Running mixXX Benchmarks
+## Running Benchmarks
 
-This project makes use of the ```mixXX``` benchmarks from the Fxmark filesystem benchmark suite. Note: the client is currently hardcoded to expect the server to be running on port 8080.
+This project makes use of the ```mixXX``` benchmarks for varying read/write ratios. The crate expects the following options when running natively:
+```
+cargo run -- 
+--mode <"client", "server">
+--rpc <"drpc", "grpc">
+--transport <"tcplocal", "tcpremote", "uds">
+--port <optional, defaults to 8080>
+--wratio <space separated list of write ratios>
+--openf <number of open files>
+--duration <benchmark duration in seconds>
+-o <output file>
+```
+Where ```mode``` specifies client/server modality, ```rpc``` distinguishes between gRPC and Dinos-RPC libraries, and ```transport``` specifies which transport protocol/bind address to use: ```tcplocal``` establishes a tcp connection on localhost, ```tcpremote``` establishes a pseudo-remote tcp connection using bridge interfaces (used for emulation mode), and ```uds``` uses Unix Domain Sockets.
 
-To run a local version of the benchmarks (client and server running locally) with write ratios of 0 and 10, 1 open file, and 10s duration:
+Additionally, the client can specify the benchmark parameters: ```wratio``` sets the ratio of writes and can take multiple values (defaults to 50%), ```openf``` specifies the number of open files (defaults to 1), and ```duration``` specifies the duration of the benchmark in seconds (defaults to 10).
+
+For example, a local FxRPC benchmark using Dinos-RPC, 0% and 10% write ratios, 1 open file, for 10 seconds, can be run with the following commands:
 ```
-cargo run -- --mode loc_server --port 8080 
-cargo run -- --mode loc_client --wratio 0 10 --openf 1 --duration 10
+cargo run -- --mode=server --transport=tcplocal --rpc=drpc
+cargo run -- --mode=client --transport=tcplocal --rpc=drpc --wratio 0 10 --openf 1 --duration 10
 ```
 
-### Testing
+If no output file is specified, benchmark data will be written to ```fxrpc_bench.csv```.
 
-To run unit tests for various syscalls and directory operations, first initialize the file system:
-```
-echo "ReadTest" > /dev/shm/read_test.txt
-```
-Run the server:
-```
-cargo run -- --mode loc_server --port 8080
-```
-Run the tests:
-```
-cargo test
-```
-
-## Benchmarking Fxmark gRPC
-
-### Huge Page Configuration
+### Huge Page Configuration (emulation mode)
 
 Install the dependencies:
 ```bash
@@ -123,7 +100,7 @@ Then, you'll need to initiate the hugetlbfs with:
 sudo hugeadm --create-global-mounts
 ```
 
-### Running the benchmarks
+### Running Emulated benchmarks
 
 The code to automatically emulate and benchmark the Fxmark gRPC program is located in ```run/```.
 
