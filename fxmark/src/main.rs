@@ -64,6 +64,7 @@ fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
                 .required(false)
                 .help("Write ratio for mix benchmarks")
                 .multiple(true)
+                .default_value("50")
                 .takes_value(true),
         )
         .arg(
@@ -72,6 +73,7 @@ fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
                 .required(false)
                 .help("Number of open files for mix benchmarks")
                 .multiple(true)
+                .default_value("1")
                 .takes_value(true),
         )
         .arg(
@@ -79,6 +81,7 @@ fn parseargs(args: std::env::Args) -> clap::ArgMatches<'static> {
                 .long("duration")
                 .required(false)
                 .help("Duration for benchmark")
+                .default_value("10")
                 .takes_value(true),
         )
         .arg(
