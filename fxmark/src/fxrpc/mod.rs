@@ -115,8 +115,8 @@ pub fn init_client(conn_type: ConnType, rpc_type: RPCType) -> Box<dyn FxRPC> {
             ConnType::UDS => Box::new(BlockingClient::connect_uds().unwrap()),
         },
         RPCType::DRPC => match conn_type {
-            ConnType::TcpLocal => Box::new(init_client_drpc("http://[::1]:8080")),
-            ConnType::TcpRemote => Box::new(init_client_drpc("http://172.31.0.1:8080")),
+            ConnType::TcpLocal => Box::new(init_client_drpc("127.0.0.1:8080")),
+            ConnType::TcpRemote => Box::new(init_client_drpc("172.31.0.1:8080")),
             ConnType::UDS => Box::new(init_client_drpc("")),
         },
     }
