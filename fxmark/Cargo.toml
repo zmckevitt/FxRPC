@@ -1,5 +1,5 @@
 [package]
-name = "fxmark_grpc"
+name = "fxrpc"
 version = "0.1.0"
 edition = "2021"
 

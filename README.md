@@ -102,6 +102,10 @@ sudo hugeadm --create-global-mounts
 
 ### Running Emulated benchmarks
 
+First, install necessary dependencies:
+
+```sudo apt install cloud-image-utils```
+
 The code to automatically emulate and benchmark the Fxmark gRPC program is located in ```run/```.
 
 To run the benchmarks with a qemu emulation layer (requires preconfigured disk image - see CONFIGURATION.md):

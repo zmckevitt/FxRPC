@@ -26,6 +26,14 @@ fn main() {
                 .possible_values(&["tcp", "uds"]),
         )
         .arg(
+            Arg::with_name("rpc")
+                .long("rpc")
+                .required(true)
+                .help("grpc or drpc")
+                .takes_value(true)
+                .possible_values(&["grpc", "drpc"]),
+        )
+        .arg(
             Arg::with_name("image")
                 .long("image")
                 .required(false)
@@ -73,13 +81,14 @@ fn main() {
         .get_matches_from(args);
 
     let transport = value_t!(matches, "transport", String).unwrap_or_else(|e| e.exit());
+    let rpc = value_t!(matches, "rpc", String).unwrap_or_else(|e| e.exit());
     let wratios: Vec<&str> = matches.values_of("wratio").unwrap().collect();
     let openfs: Vec<&str> = matches.values_of("openf").unwrap().collect();
     let duration = value_t!(matches, "duration", String).unwrap_or_else(|e| e.exit());
     let csv = value_t!(matches, "csv", String).unwrap_or_else(|e| e.exit());
 
     let csv = if csv == "" {
-        format!("fxmark_grpc_{}_benchmarks.csv", transport)
+        format!("fxrpc_{}_{}_benchmarks.csv", transport, rpc)
     } else {
         csv
     };
@@ -92,7 +101,7 @@ fn main() {
         2048 * (((num_cores + 3 - 1) / 3) * 3)
     }
 
-    let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients\n";
+    let row = "thread_id,benchmark,ncores,write_ratio,open_files,duration_total,duration,operations,client_id,client_cores,nclients,rpctype\n";
     let _ = remove_file(csv.clone());
     let mut csv_file = OpenOptions::new()
         .append(true)
@@ -146,6 +155,8 @@ fn main() {
                 .arg("run.py")
                 .arg("--transport")
                 .arg("tcp")
+                .arg("--rpc")
+                .arg(rpc.clone())
                 .arg("--image")
                 .arg(image.clone())
                 .arg("--scores")
@@ -182,6 +193,8 @@ fn main() {
                 .arg("run.py")
                 .arg("--transport")
                 .arg("uds")
+                .arg("--rpc")
+                .arg(rpc.clone())
                 .arg("--scores")
                 .arg(scores.clone())
                 .arg("--clients")

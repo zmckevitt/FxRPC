@@ -19,7 +19,7 @@ from plumbum.cmd import whoami, python3, cat, getent, whoami
 
 BOOT_TIMEOUT = 60
 EXP_TIMEOUT = 10000000
-CSV_FILE = "fxmark_grpc_{}_benchmark.csv" 
+CSV_FILE = "fxrpc_{}_{}_benchmark.csv" 
 AFF_TIMEOUT = 120
 HUGETLBFS_PATH = "/usr/lib/x86_64-linux-gnu/libhugetlbfs.so"
 
@@ -46,6 +46,8 @@ parser = argparse.ArgumentParser()
 
 parser.add_argument("-t", "--transport", required=True, 
                     help="Specify transport method")
+parser.add_argument("--rpc", required=True, 
+                    help="Specify rpc library (grpc or drpc)")
 parser.add_argument("-i", "--image", required=False, 
                     help="Specify disk image to use")
 parser.add_argument("-s", "--scores", type=int, required=True, default=1, 
@@ -164,7 +166,7 @@ def start_server_tcp(args, node, affinity):
     while True:
 
         if(timeout > AFF_TIMEOUT):
-            print("Affinity timeout!")
+            print("Server affinity timeout!")
             sys.exit()
 
         try:
@@ -188,7 +190,7 @@ def start_server_tcp(args, node, affinity):
     child.sendline(cmd)
     child.expect("root@jammy:~# ")
 
-    cmd = "./fxmark_grpc --mode emu_server --port 8080"
+    cmd = "./fxrpc --mode server --transport tcpremote --rpc " + args.rpc + " --port 8080"
     print("Invoking TCP server in emulated environment with command: ", cmd)
     child.sendline(cmd)
     child.expect("Starting server on port 8080")
@@ -222,7 +224,7 @@ def start_client_tcp(cid, args, node, affinity):
     while True:
         
         if(timeout > AFF_TIMEOUT):
-            print("Affinity timeout!")
+            print("Client affinity timeout!")
             sys.exit()
 
         try:
@@ -253,13 +255,13 @@ def start_client_tcp(cid, args, node, affinity):
     for f in args.openf:
         openfs += f + " "
  
-    cmd = "./fxmark_grpc --mode emu_client --wratio " + wratios + "--openf " + openfs + \
+    cmd = "./fxrpc --mode client --transport tcpremote --rpc " + args.rpc + " --wratio " + wratios + "--openf " + openfs + \
         "--duration " + str(args.duration) + " --cid " + str(cid-1) + \
         " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
     print("Invoking TCP client in emulated environment with command: " + cmd)
     child.sendline(cmd)
     child.expect_exact("thread_id,benchmark,ncores,write_ratio,open_files,duration_total," \
-                       "duration,operations,client_id,client_cores,nclients")
+                       "duration,operations,client_id,client_cores,nclients,rpctype")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
     output = child.before.decode().replace('\r', '')
@@ -270,7 +272,7 @@ def start_client_tcp(cid, args, node, affinity):
     f.close()
 
 def start_server_uds(args):
-    cmd = "../prog/target/release/fxmark_grpc --mode uds_server"
+    cmd = "../prog/target/release/fxrpc --mode server --transport uds --rpc " + args.rpc 
     if(not args.nonuma):
         cmd = "numactl --membind=0 --cpunodebind=0 " + cmd
         print("Invoking UDS server with command: ", cmd)
@@ -289,7 +291,7 @@ def start_client_uds(cid, args):
     openfs = ""
     for f in args.openf:
         openfs += f + " "
-    cmd = "../prog/target/release/fxmark_grpc --mode uds_client --wratio " + wratios + \
+    cmd = "../prog/target/release/fxrpc --mode client --transport uds --rpc " + args.rpc + " --wratio " + wratios + \
         "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + \
         " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
     if(not args.nonuma):
@@ -417,7 +419,7 @@ if __name__ == '__main__':
     print("Invoking run.py with command: " + " ".join(sys.argv))
 
     if args.csv is None:
-        args.csv = CSV_FILE.format(args.transport)
+        args.csv = CSV_FILE.format(args.transport, args.rpc)
 
     # print(NETWORK_CONFIG)
     if args.transport == "tcp":
