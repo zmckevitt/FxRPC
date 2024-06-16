@@ -275,10 +275,10 @@ impl FxRPC for Client {
 }
 
 // TODO: allow for various transpots/bind locations
-pub fn init_client_drpc() -> Client {
+pub fn init_client_drpc(bind_addr: &str) -> Client {
     // TODO: make parameters for this, maybe wrap this function or
     // leverage the ConnType enum to distinguish tcp/uds?
-    let stream = TcpStream::connect("127.0.0.1:8080").unwrap();
+    let stream = TcpStream::connect(bind_addr).unwrap();
     let transport = StdTCP {
         stream: Arc::new(Mutex::new(stream)),
     };
