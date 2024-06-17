@@ -272,7 +272,7 @@ def start_client_tcp(cid, args, node, affinity):
     f.close()
 
 def start_server_uds(args):
-    cmd = "../prog/target/release/fxrpc --mode server --transport uds --rpc " + args.rpc 
+    cmd = "../fxmark/target/release/fxrpc --mode server --transport uds --rpc " + args.rpc 
     if(not args.nonuma):
         cmd = "numactl --membind=0 --cpunodebind=0 " + cmd
         print("Invoking UDS server with command: ", cmd)
@@ -291,7 +291,7 @@ def start_client_uds(cid, args):
     openfs = ""
     for f in args.openf:
         openfs += f + " "
-    cmd = "../prog/target/release/fxrpc --mode client --transport uds --rpc " + args.rpc + " --wratio " + wratios + \
+    cmd = "../fxmark/target/release/fxrpc --mode client --transport uds --rpc " + args.rpc + " --wratio " + wratios + \
         "--openf " + openfs + "--duration " + str(args.duration) + " --cid " + str(cid-1) + \
         " --nclients " + str(args.clients) + " --ccores " + str(args.ccores)
     if(not args.nonuma):
