@@ -3,7 +3,10 @@ use log::debug;
 use rpc::rpc::*;
 use rpc::server::{RPCHandler, Server};
 use rpc::transport::stdtcp::*;
+use rpc::transport::uds::*;
 use std::net::{TcpListener, TcpStream};
+use std::os::unix::net::{UnixListener, UnixStream};
+use std::path::Path;
 use std::sync::{Arc, Mutex};
 
 use abomonation::{decode, encode};
@@ -248,13 +251,33 @@ fn server_from_stream(stream: TcpStream) {
 }
 
 pub fn start_drpc_server_tcp(bind_addr: &str, port: u16) {
-    // TODO: bind to addr/port specified in parameters
     let addr = format!("{}:{}", bind_addr, port);
-    let listener = TcpListener::bind(addr).expect("Failed to create TCP transport");
+    let listener = TcpListener::bind(addr).expect("Failed to create TCP listener");
 
     for stream in listener.incoming() {
         std::thread::spawn(move || server_from_stream(stream.unwrap()));
     }
 }
 
-pub fn start_drpc_server_uds() {}
+fn server_from_unix(stream: UnixStream) {
+    let transport = UDS {
+        stream: Arc::new(Mutex::new(stream)),
+    };
+    let mut server = Server::new(Box::new(transport));
+    register_rpcs(&mut server);
+    let _ = server.run_server();
+}
+
+pub fn start_drpc_server_uds(path: &str) {
+    // Remove existing UDS dir
+    let _ = std::fs::remove_dir_all(Path::new(path).parent().unwrap());
+
+    // Create UDS dir
+    let _ = std::fs::create_dir_all(Path::new(path).parent().unwrap());
+
+    let listener = UnixListener::bind(path).expect("Failed to create UDS listener");
+
+    for stream in listener.incoming() {
+        std::thread::spawn(move || server_from_unix(stream.unwrap()));
+    }
+}

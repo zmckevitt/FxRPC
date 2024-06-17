@@ -115,9 +115,9 @@ pub fn init_client(conn_type: ConnType, rpc_type: RPCType) -> Box<dyn FxRPC> {
             ConnType::UDS => Box::new(BlockingClient::connect_uds().unwrap()),
         },
         RPCType::DRPC => match conn_type {
-            ConnType::TcpLocal => Box::new(init_client_drpc("127.0.0.1:8080")),
-            ConnType::TcpRemote => Box::new(init_client_drpc("172.31.0.1:8080")),
-            ConnType::UDS => Box::new(init_client_drpc("")),
+            ConnType::TcpLocal => Box::new(init_client_drpc_tcp("127.0.0.1:8080")),
+            ConnType::TcpRemote => Box::new(init_client_drpc_tcp("172.31.0.1:8080")),
+            ConnType::UDS => Box::new(init_client_drpc_uds(UDS_PATH)),
         },
     }
 }
@@ -133,7 +133,7 @@ pub fn run_server(conn_type: ConnType, rpc_type: RPCType, port: u16) {
         RPCType::DRPC => match conn_type {
             ConnType::TcpLocal => start_drpc_server_tcp("127.0.0.1", port),
             ConnType::TcpRemote => start_drpc_server_tcp("172.31.0.1", port),
-            ConnType::UDS => start_drpc_server_uds(),
+            ConnType::UDS => start_drpc_server_uds(UDS_PATH),
         },
     };
 }

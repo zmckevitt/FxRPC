@@ -2,7 +2,9 @@ use log::debug;
 use rpc::client::Client;
 use rpc::rpc::*;
 use rpc::transport::stdtcp::*;
+use rpc::transport::uds::*;
 use std::net::TcpStream;
+use std::os::unix::net::UnixStream;
 use std::sync::{Arc, Mutex};
 
 use abomonation::{decode, encode};
@@ -274,12 +276,18 @@ impl FxRPC for Client {
     }
 }
 
-// TODO: allow for various transpots/bind locations
-pub fn init_client_drpc(bind_addr: &str) -> Client {
-    // TODO: make parameters for this, maybe wrap this function or
-    // leverage the ConnType enum to distinguish tcp/uds?
+pub fn init_client_drpc_tcp(bind_addr: &str) -> Client {
     let stream = TcpStream::connect(bind_addr).unwrap();
     let transport = StdTCP {
+        stream: Arc::new(Mutex::new(stream)),
+    };
+    let client = Client::new(Box::new(transport));
+    client
+}
+
+pub fn init_client_drpc_uds(bind_addr: &str) -> Client {
+    let stream = UnixStream::connect(bind_addr).unwrap();
+    let transport = UDS {
         stream: Arc::new(Mutex::new(stream)),
     };
     let client = Client::new(Box::new(transport));
