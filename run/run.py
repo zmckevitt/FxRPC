@@ -193,7 +193,7 @@ def start_server_tcp(args, node, affinity):
     cmd = "./fxrpc --mode server --transport tcpremote --rpc " + args.rpc + " --port 8080"
     print("Invoking TCP server in emulated environment with command: ", cmd)
     child.sendline(cmd)
-    child.expect("Starting server on port 8080")
+    child.expect("Starting " + args.rpc + " tcpremote server")
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
 def start_client_tcp(cid, args, node, affinity):

@@ -100,7 +100,7 @@ def spawn_qemu(disk, config, conf: bool):
 
 # wait for login prompt to appear
 def wait_for_login(qemu) :
-    qemu.expect(f"Ubuntu 22.04.3 LTS {UBUNTU_VERSION} ttyS0", timeout=360)
+    qemu.expect(f"Ubuntu 22.04.4 LTS {UBUNTU_VERSION} ttyS0", timeout=360)
 
 # wait for the prompt to appear
 def wait_for_prompt(qemu) :
@@ -302,6 +302,18 @@ def install_packages(qemu, packages):
     print(f" > Installing packages: {packages}" )
     do_cmd(qemu, f"apt install -y {packages}")
 
+def install_fxrpc(qemu):
+    print(f" > Installing fxrpc")
+
+    do_cmd(qemu, f"cd /root")
+
+    qemu.sendline(f"wget https://github.com/zmckevitt/fxmark_grpc/raw/dinos-rpc/run/bin/fxrpc")
+    qemu.expect(f"root@{HOSTNAME}", timeout=60)
+    
+    do_cmd(qemu, f"chmod +x fxrpc")
+    do_cmd(qemu, f"apt update")
+    do_cmd(qemu, f"apt install -y hwloc")
+
 # configures the cloud image based on the configuration, returns qemu instance in root shell
 def run_cloud_init(disk, config):
     log(f"Configuring Image...")
@@ -314,6 +326,7 @@ def run_cloud_init(disk, config):
     qemu.expect("jammy login", timeout=30)
     login_as(qemu, USERNAME, PASSWORD)
 
+    
     print(" > Switching to root")
     do_cmd(qemu, f"sudo su")
     consume_output(qemu, False)
@@ -329,6 +342,9 @@ def run_cloud_init(disk, config):
 
     # installing packets
     install_packages(qemu, UBUNTU_PACKAGES)
+   
+    # install fxrpc 
+    install_fxrpc(qemu)
 
     # reset the networking configuration again
     reset_networking()
