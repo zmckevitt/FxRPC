@@ -307,7 +307,7 @@ def install_fxrpc(qemu):
 
     do_cmd(qemu, f"cd /root")
 
-    qemu.sendline(f"wget https://github.com/zmckevitt/fxmark_grpc/raw/dinos-rpc/run/bin/fxrpc")
+    qemu.sendline(f"wget https://github.com/zmckevitt/FxRPC/raw/master/run/bin/fxrpc")
     qemu.expect(f"root@{HOSTNAME}", timeout=60)
     
     do_cmd(qemu, f"chmod +x fxrpc")
