@@ -265,6 +265,7 @@ def start_client_tcp(cid, args, node, affinity):
     child.expect("root@jammy:~# ", timeout=EXP_TIMEOUT)
 
     output = child.before.decode().replace('\r', '')
+    output = output.replace('\033[?2004h', '')
     if(output[0] == '\n'):
         output = output[1:]
     f = open(args.csv, "a")
