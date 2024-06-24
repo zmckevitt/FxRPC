@@ -134,10 +134,10 @@ cargo run -- --transport tcp --rpc grpc --image <path to disk image> --wratio 0 
 ```
 To run the same benchmark using uds (requires ```fxmark/``` to be built locally with ```--release``` flag):
 ```
-cargo run -- --transport uds --wratio 0 --openf 1 --duration 20
+cargo run -- --transport uds --rpc <drpc or grpc> --wratio 0 --openf 1 --duration 20
 ```
-If running benchmarks on a non-NUMA architecture, specify with the ```--nonuma``` flag:
+If running benchmarks on a non-NUMA architecture, specify with the ```--nonuma``` flag, for example:
 ```
-cargo run -- --transport uds --wratio 0 --openf 1 --duration 20 --nonuma
+cargo run -- --transport uds --rpc <drpc or grpc> --wratio 0 --openf 1 --duration 20 --nonuma
 ```
 Note: the program writes and removes ephemeral disk images to/from ```/tmp```.
