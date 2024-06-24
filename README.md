@@ -4,6 +4,9 @@ This project contains a distributed filesystem benchmark where clients forward s
 
 ## System dependencies
 
+### Building Fxmark
+The following dependencies are required to build FxRPC locally. For running emulated benchmarks, see the requirements below. Note that one must build Fxmark locally to run emulated UDS benchmarks.
+
 This project uses submodules, so initialize them first:
 ```
 git submodule update --init
@@ -18,42 +21,31 @@ To build the FxRPC program in ```fxmark/```, you will need the following depende
 ```
 sudo apt install protobuf-compiler -y
 ```
-To run the automated benchmark runner in ```run/```, you will need the python numa package:
+Lastly, make sure to build with the release flag:
+```
+cd fxmark
+cargo build --release
+```
+
+
+### Emulation Mode
+
+To run emulated FxRPC, you will need the python numa package:
 ```
 pip install py-libnuma
 ```
-If running with QEMU emulation, you must add yourself to the kvm group (you will need to reset your shell for this to take effect):
+To run with QEMU emulation, you must add yourself to the kvm group (you will need to reset your shell for this to take effect):
 ```
 sudo adduser [username] kvm
 ```
-
-## Running Benchmarks
-
-This project makes use of the ```mixXX``` benchmarks for varying read/write ratios. The crate expects the following options when running natively:
+Emulation mode requires a disk image configured to auto-login as root and start the FxRPC program. This image can be created automatically:
 ```
-cargo run -- 
---mode <"client", "server">
---rpc <"drpc", "grpc">
---transport <"tcplocal", "tcpremote", "uds">
---port <optional, defaults to 8080>
---wratio <space separated list of write ratios>
---openf <number of open files>
---duration <benchmark duration in seconds>
--o <output file>
+sudo apt install cloud-image-utils
+python3 tools/create_disk_image.py
 ```
-Where ```mode``` specifies client/server modality, ```rpc``` distinguishes between gRPC and Dinos-RPC libraries, and ```transport``` specifies which transport protocol/bind address to use: ```tcplocal``` establishes a tcp connection on localhost, ```tcpremote``` establishes a pseudo-remote tcp connection using bridge interfaces (used for emulation mode), and ```uds``` uses Unix Domain Sockets.
+This will automatically create a new ubuntu disk image, ```ubuntu-server-cloudimg-amd64.img```, based off of the precompiled Fxmark binary in ```run/bin```. For information on configuring this disk image manually, see ```CONFIGURATION.md```.
 
-Additionally, the client can specify the benchmark parameters: ```wratio``` sets the ratio of writes and can take multiple values (defaults to 50%), ```openf``` specifies the number of open files (defaults to 1), and ```duration``` specifies the duration of the benchmark in seconds (defaults to 10).
-
-For example, a local FxRPC benchmark using Dinos-RPC, 0% and 10% write ratios, 1 open file, for 10 seconds, can be run with the following commands:
-```
-cargo run -- --mode=server --transport=tcplocal --rpc=drpc
-cargo run -- --mode=client --transport=tcplocal --rpc=drpc --wratio 0 10 --openf 1 --duration 10
-```
-
-If no output file is specified, benchmark data will be written to ```fxrpc_bench.csv```.
-
-### Huge Page Configuration (emulation mode)
+### Huge Page Configuration
 
 Install the dependencies:
 ```bash
@@ -100,27 +92,51 @@ Then, you'll need to initiate the hugetlbfs with:
 sudo hugeadm --create-global-mounts
 ```
 
+## Running Benchmarks
+
+### Local Fxmark instance
+
+This project makes use of the ```mixXX``` benchmarks for varying read/write ratios. The crate expects the following options when running natively:
+```
+cargo run -- 
+--mode <"client", "server">
+--rpc <"drpc", "grpc">
+--transport <"tcplocal", "tcpremote", "uds">
+--port <optional, defaults to 8080>
+--wratio <space separated list of write ratios>
+--openf <number of open files>
+--duration <benchmark duration in seconds>
+-o <output file>
+```
+Where ```mode``` specifies client/server modality, ```rpc``` distinguishes between gRPC and Dinos-RPC libraries, and ```transport``` specifies which transport protocol/bind address to use: ```tcplocal``` establishes a tcp connection on localhost, ```tcpremote``` establishes a pseudo-remote tcp connection using bridge interfaces (used for emulation mode), and ```uds``` uses Unix Domain Sockets.
+
+Additionally, the client can specify the benchmark parameters: ```wratio``` sets the ratio of writes and can take multiple values (defaults to 50%), ```openf``` specifies the number of open files (defaults to 1), and ```duration``` specifies the duration of the benchmark in seconds (defaults to 10).
+
+For example, a local FxRPC benchmark using Dinos-RPC, 0% and 10% write ratios, 1 open file, for 10 seconds, can be run with the following commands:
+```
+cargo run -- --mode=server --transport=tcplocal --rpc=drpc
+cargo run -- --mode=client --transport=tcplocal --rpc=drpc --wratio 0 10 --openf 1 --duration 10
+```
+
+If no output file is specified, benchmark data will be written to ```fxrpc_bench.csv```.
+
 ### Running Emulated benchmarks
 
-First, install necessary dependencies:
-
-```sudo apt install cloud-image-utils```
-
-The code to automatically emulate and benchmark the Fxmark gRPC program is located in ```run/```.
+The code to automatically emulate and benchmark the FxRPC program is located in ```run/```.
 
 To run the benchmarks with a qemu emulation layer (requires preconfigured disk image - see CONFIGURATION.md):
 ```
-cargo run -- --transport <uds or tcp> --image <path to disk image> --wratio <write ratios> --openf <open files> --duration <experiment duration> --csv <optional alternate csv output>
+cargo run -- --transport <uds or tcp> --rpc <grpc or drpc> --image <path to disk image> --wratio <write ratios> --openf <open files> --duration <experiment duration> --csv <optional alternate csv output>
 ```
-For example, to run emulated fxmark (tcp):
+For example, to run emulated fxmark (tcp) over grpc:
 ```
-cargo run -- --transport tcp --image <path to disk image> --wratio 0 --openf 1 --duration 20
+cargo run -- --transport tcp --rpc grpc --image <path to disk image> --wratio 0 --openf 1 --duration 20
 ```
-To run the same benchmark using uds (requires ```prog/``` to be built with ```--release```):
+To run the same benchmark using uds (requires ```fxmark/``` to be built locally with ```--release``` flag):
 ```
 cargo run -- --transport uds --wratio 0 --openf 1 --duration 20
 ```
-If running UDS benchmarks on a non-NUMA architecture, specify with the ```--nonuma``` flag:
+If running benchmarks on a non-NUMA architecture, specify with the ```--nonuma``` flag:
 ```
 cargo run -- --transport uds --wratio 0 --openf 1 --duration 20 --nonuma
 ```
